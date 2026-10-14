@@ -12,6 +12,7 @@
 <link rel="icon" type="image/png" sizes="64x64" href="favicon.png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <title>Maglia a quadretti</title>
+<script>try{var _t=localStorage.getItem('mq-theme');if(_t&&_t!=='auto')document.documentElement.setAttribute('data-theme',_t)}catch(e){}</script>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
 <style>
 html{height:100%}
@@ -419,6 +420,7 @@ nav button{flex:1 1 90px;padding:10px 6px;font-weight:700}
 <div class="tr">
 <div class="seg"><button id="vwGrid" title="Icone">Icone</button><button id="vwList" title="Elenco">Elenco</button></div>
 <select id="hmSize" title="Dimensione delle icone"><option value="118">piccole</option><option value="164">medie</option><option value="230">grandi</option></select>
+<button id="hmTheme" title="Chiaro, scuro o come il sistema">Tema</button>
 <button id="hmSet" title="Impostazioni">Impostazioni</button>
 <button id="hmLock" title="Blocca">Blocca</button>
 </div>
@@ -3111,7 +3113,27 @@ function thumbOf(z,px){
 
 /* ---------- schermata iniziale ---------- */
 const CRD=()=>(L.cards||[]).filter(z=>z&&!z.del);
+/* chiaro o scuro: è una scelta del dispositivo, non dell'archivio condiviso */
+const THN={auto:'Tema: auto',light:'Tema: chiaro',dark:'Tema: scuro'};
+function themeGet(){try{const t=localStorage.getItem('mq-theme');return THN[t]?t:'auto'}catch(e){return 'auto'}}
+function themeApply(){
+ const t=themeGet(), r=document.documentElement;
+ if(t==='auto')r.removeAttribute('data-theme');else r.setAttribute('data-theme',t);
+ const old=document.getElementById('thmF');if(old)old.remove();
+ if(t!=='auto'){const m=document.createElement('meta');m.id='thmF';m.name='theme-color';
+  m.content=t==='dark'?'#111627':'#f2f5fb';document.head.appendChild(m)}
+ const b=$('#hmTheme');
+ if(b){b.textContent=THN[t];
+  b.title=t==='auto'?'Segue il tuo computer. Premi per metterlo sempre chiaro.'
+   :t==='light'?'Sempre chiaro. Premi per metterlo sempre scuro.'
+   :'Sempre scuro. Premi per tornare a seguire il computer.'}
+ return t}
+$('#hmTheme').onclick=()=>{const t=themeGet();
+ const next=t==='auto'?'light':t==='light'?'dark':'auto';
+ try{localStorage.setItem('mq-theme',next)}catch(e){}
+ themeApply();if(view==='proj'||view==='sch')repaint&&repaint()};
 function homePanel(){
+ themeApply();
  const P=PRv(),G=GSv(),C=CRD();
  $('#cP').textContent=P.length;$('#cG').textContent=G.length;$('#cS').textContent=C.length;
  $('#hmGrid').style.setProperty('--cw',hsize+'px');
