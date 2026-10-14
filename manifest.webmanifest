@@ -1,6 +1,6 @@
 {
-  "name": "Maglia a quadretti",
-  "short_name": "Maglia",
+  "name": "Calcolatore maglieria",
+  "short_name": "Maglieria 1",
   "description": "Progetti per macchina da maglieria: foglio a quadretti, campioni, motivi, schede perforate e contagiri.",
   "lang": "it",
   "start_url": "./",
