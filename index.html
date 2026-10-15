@@ -527,7 +527,7 @@ nav button{flex:1 1 90px;padding:10px 6px;font-weight:700}
 
 <aside class="dr min" id="dr">
 <button class="drt" id="drTog"><span>Motivi e linee</span></button>
-<div class="drb" id="drBody"><div id="sl"></div><div id="rl"></div></div>
+<div class="drb" id="drBody"><div id="fl"></div><div id="sl"></div><div id="rl"></div></div>
 </aside>
 </div>
 
@@ -611,6 +611,11 @@ nav button{flex:1 1 90px;padding:10px 6px;font-weight:700}
     <label>Righe in altezza<input id="imR" type="number" min="2" max="200" step="1" value="24"></label>
     <button id="imGuess">Indovina la griglia</button>
     <button id="imAll">Tutta l'immagine</button>
+   </div>
+   <div class="mgr">
+    <label>Registro ⟷<input id="imOX" type="number" min="-60" max="60" step="1" value="0"></label>
+    <label>Registro ↕<input id="imOY" type="number" min="-60" max="60" step="1" value="0"></label>
+    <button id="imOZ">Azzera registro</button>
    </div>
    <div class="mgr">
     <label>Soglia chiaro / scuro<input id="imT" type="range" min="0" max="255" step="1" value="128"></label>
@@ -997,7 +1002,7 @@ const sbb=(id,ic,lab)=>'<button class="sbb" id="'+id+'" title="'+lab+'">'+svg(ic
 
 function buildSb(){
  $('#ksbBody').innerHTML=
-  sbb('sbTog','menu','Apri o chiudi la barra')+
+  sbb('ksbTog','menu','Apri o chiudi la barra')+
   '<div class="sbsep"></div><div class="sbh">Motivo</div>'+
   sbb('bUni','rep','Motivo ripetuto')+
   '<div class="sbg">'+
@@ -1026,14 +1031,14 @@ function buildSb(){
   '<div class="sbh">Guardia</div>'+
   '<div class="sbg"><label id="labLim">Limite<input id="iLim" type="number" min="1" max="24" step="1"></label></div>'+
   '<div class="sbsep"></div><div class="sbh">Modifiche</div>'+
-  sbb('bUn','undo','Annulla')+sbb('bRd','redo','Ripeti')+sbb('bEm','trash','Svuota il motivo')+
+  sbb('kbUn','undo','Annulla')+sbb('kbRd','redo','Ripeti')+sbb('kbEm','trash','Svuota il motivo')+
   '<div class="sbsep"></div><div class="sbh">Vista</div>'+
-  sbb('bZm','zout','Riduci')+sbb('bZp','zin','Ingrandisci')+sbb('bFt','fit','Adatta alla finestra')+
+  sbb('bZm','zout','Riduci')+sbb('bZp','zin','Ingrandisci')+sbb('kbFt','fit','Adatta alla finestra')+
   sbb('bRep','rep','Affianca tre ripetizioni')+
   '<div class="sbsep"></div><div class="sbh">Esci</div>'+
   sbb('bPrt','print','Stampa o salva in PDF')+sbb('bPng','png','Scarica immagine');
 
- $('#sbTog').onclick=()=>{$('#ksb').classList.toggle('min');render()};
+ $('#ksbTog').onclick=()=>{$('#ksb').classList.toggle('min');render()};
  $('#iRw').onchange=e=>{pushUndo();resizeM(+e.target.value,SC.rh);touch();render()};
  $('#iRh').onchange=e=>{pushUndo();resizeM(SC.rw,clamp(+e.target.value|0,1,400));touch();render()};
  $('#iRows').onchange=e=>{SC.rows=clamp(+e.target.value|0,1,400);
@@ -1062,12 +1067,12 @@ function buildSb(){
   msg='Motivo portato a '+SC.rh+' righe. Le diagonali si fanno un po’ più a gradini: è inevitabile.';
   touch();render()};
  $('#iLim').onchange=e=>{SC.lim=clamp(+e.target.value|0,1,24);touch();render()};
- $('#bUn').onclick=()=>step(UNDO,REDO,'annullare');
- $('#bRd').onclick=()=>step(REDO,UNDO,'ripetere');
- $('#bEm').onclick=()=>{pushUndo();SC.m=SC.m.map(s=>s.replace(/1/g,'0'));msg='Motivo svuotato.';touch();render()};
+ $('#kbUn').onclick=()=>step(UNDO,REDO,'annullare');
+ $('#kbRd').onclick=()=>step(REDO,UNDO,'ripetere');
+ $('#kbEm').onclick=()=>{pushUndo();SC.m=SC.m.map(s=>s.replace(/1/g,'0'));msg='Motivo svuotato.';touch();render()};
  $('#bZm').onclick=()=>{Z=clamp(Z*.8,.3,4);UZ=1;render()};
  $('#bZp').onclick=()=>{Z=clamp(Z*1.25,.3,4);UZ=1;render()};
- $('#bFt').onclick=()=>{fit();render()};
+ $('#kbFt').onclick=()=>{fit();render()};
  $('#bRep').onclick=()=>{rep=rep===1?3:1;if(!UZ)fit();render()};
  $('#bImg').onclick=imOpen;
  $('#bPrt').onclick=doPrint;
@@ -1101,7 +1106,7 @@ function sbSync(){
  $('#negHint').textContent=SC.db
   ?'Nella vista Tessuto vedi i due risultati possibili affiancati: tocca il titoletto di quello che fa la tua macchina.'
   :'';
- $('#bUn').disabled=!UNDO.length;$('#bRd').disabled=!REDO.length;
+ $('#kbUn').disabled=!UNDO.length;$('#kbRd').disabled=!REDO.length;
  $('#bRep').classList.toggle('on',rep===3);
 }
 
@@ -1299,7 +1304,8 @@ function doPng(){
    basta leggere le caselle, e un'immagine qualsiasi da ridurre a 24 maglie. */
 let IM=null;
 function imOpen(){
- IM={img:null,sc:1,crop:null,inv:0,W:0,H:0,lum:null,drag:null};
+ IM={img:null,sc:1,crop:null,inv:0,W:0,H:0,lum:null,drag:null,ox:0,oy:0,gt:128};
+ $('#imOX').value=0;$('#imOY').value=0;
  $('#imMod').hidden=false;$('#imCv').hidden=true;$('#imHelp').hidden=true;$('#imDrop').hidden=false;
  $('#imWarn').textContent='';$('#imNote').textContent='';$('#imRep').innerHTML='';
  $('#imPv').width=10;$('#imPv').height=10;
@@ -1311,7 +1317,7 @@ function imModeSync(){
  $('#imKeep').parentNode.style.display=free?'':'none';
  $('#imSub').textContent=free
   ?'Il disegno viene ridotto a 24 maglie e a due soli valori. Funziona bene con sagome e scritte; una fotografia con 24 maglie diventa una macchia.'
-  :'Dagli uno schema già a quadretti: l’app legge una casella alla volta, non devi ricopiare niente.'}
+  :'Dagli uno schema già a quadretti, anche a pallini neri su bianco: l’app guarda quanto inchiostro c’è in ogni casella. Se qualche punto si perde, allinea le righine blu sui quadretti col registro fine.'}
 
 function imFromFile(f){
  if(!f)return;
@@ -1336,6 +1342,7 @@ function imLoad(src){
    lum[j]=Math.round(l*a+255*(1-a))}
   if(!IM)IM={inv:0};
   IM.img=im;IM.W=W;IM.H=H;IM.lum=lum;IM.crop={x:0,y:0,w:W,h:H};IM.drag=null;
+  IM.ox=0;IM.oy=0;$('#imOX').value=0;$('#imOY').value=0;IM.gt=darkCut();
   $('#imDrop').hidden=true;$('#imCv').hidden=false;$('#imHelp').hidden=false;$('#imWarn').textContent='';
   if($('#imMode').value==='grid')imGuess(1);else{$('#imC').value=24;imKeepRows()}
   imAuto();imDraw();imPv()};
@@ -1349,7 +1356,7 @@ function imDraw(){
  const x=cvv.getContext('2d');if(!x)return;
  x.clearRect(0,0,cvv.width,cvv.height);
  x.drawImage(IM.img,0,0,cvv.width,cvv.height);
- const c=IM.crop;
+ const c=crop();
  x.fillStyle='rgba(14,20,40,.45)';
  x.fillRect(0,0,cvv.width,c.y*sc);
  x.fillRect(0,(c.y+c.h)*sc,cvv.width,cvv.height);
@@ -1366,34 +1373,52 @@ function imDraw(){
 /* legge una casella alla volta: nello schema a quadretti sta largo dalle linee */
 function imCells(){
  if(!IM||!IM.lum)return null;
- const c=IM.crop, cols=clamp(+$('#imC').value|0,2,48), rows=clamp(+$('#imR').value|0,2,200);
- const f=$('#imMode').value==='grid'?.32:.5;
+ const c=crop(), cols=clamp(+$('#imC').value|0,2,48), rows=clamp(+$('#imR').value|0,2,200);
+ const grid=$('#imMode').value==='grid';
+ const f=grid?.34:.5, N=grid?7:5, gt=grid?(IM.gt||darkCut()):0;
  const out=new Float32Array(cols*rows);
  for(let r=0;r<rows;r++)for(let k=0;k<cols;k++){
   const cx=c.x+c.w*(k+.5)/cols, cy=c.y+c.h*(rows-1-r+.5)/rows;   /* riga 1 in basso */
   const hw=Math.max(.6,c.w/cols*f), hh=Math.max(.6,c.h/rows*f);
-  let sum=0,n=0;
-  /* 25 punti equidistanti e simmetrici dentro la casella. Il punto dell'immagine
+  let sum=0,ink=0,n=0;
+  /* punti equidistanti e simmetrici dentro la casella. Il punto dell'immagine
      si trova con floor, non con round: con round mezzo pixel di scarto farebbe
      uscire storto anche un disegno perfettamente simmetrico. */
-  for(let iy=0;iy<5;iy++)for(let ix=0;ix<5;ix++){
-   const x=clamp(Math.floor(cx+(ix/4-.5)*2*hw),0,IM.W-1);
-   const y=clamp(Math.floor(cy+(iy/4-.5)*2*hh),0,IM.H-1);
-   sum+=IM.lum[y*IM.W+x];n++}
-  out[r*cols+k]=n?sum/n:255}
+  for(let iy=0;iy<N;iy++)for(let ix=0;ix<N;ix++){
+   const x=clamp(Math.floor(cx+(ix/(N-1)-.5)*2*hw),0,IM.W-1);
+   const y=clamp(Math.floor(cy+(iy/(N-1)-.5)*2*hh),0,IM.H-1);
+   const l=IM.lum[y*IM.W+x];sum+=l;if(l<=gt)ink++;n++}
+  /* negli schemi conta quanto inchiostro c'è nella casella, non quanto è scura
+     in media: un pallino nero su fondo bianco alza la media e si perdeva. */
+  out[r*cols+k]=n?(grid?255*(1-ink/n):sum/n):255}
  return{a:out,cols,rows}}
 
 /* soglia che separa meglio il chiaro dallo scuro (Otsu) */
-function otsu(a){
- const h=new Array(256).fill(0);
- for(let i=0;i<a.length;i++)h[clamp(Math.round(a[i]),0,255)]++;
- const tot=a.length;let sum=0;for(let i=0;i<256;i++)sum+=i*h[i];
+function otsuH(h,tot){
+ let sum=0;for(let i=0;i<256;i++)sum+=i*h[i];
  let sb=0,wb=0,bv=-1,bm=[60,200];
  for(let t=0;t<256;t++){wb+=h[t];if(!wb)continue;const wf=tot-wb;if(wf<=0)break;
   sb+=t*h[t];const mb=sb/wb,mf=(sum-sb)/wf,v=wb*wf*(mb-mf)*(mb-mf);
   if(v>bv){bv=v;bm=[mb,mf]}}
  /* a metà fra il grigio medio dei due gruppi: così le sfumature dei bordi non spostano tutto */
  return clamp(Math.round((bm[0]+bm[1])/2),1,254)}
+function otsu(a){
+ const h=new Array(256).fill(0);
+ for(let i=0;i<a.length;i++)h[clamp(Math.round(a[i]),0,255)]++;
+ return otsuH(h,a.length)}
+/* soglia dei punti scuri dell'immagine intera: serve a contare l'inchiostro
+   dentro ogni casella, che è l'unico modo sicuro di leggere gli schemi a pallini */
+function darkCut(){
+ if(!IM||!IM.lum)return 128;
+ const c=crop(), h=new Array(256).fill(0);
+ let tot=0;
+ const sx=Math.max(1,Math.floor(c.w/260)), sy=Math.max(1,Math.floor(c.h/260));
+ for(let y=Math.max(0,Math.round(c.y));y<c.y+c.h&&y<IM.H;y+=sy)
+  for(let x=Math.max(0,Math.round(c.x));x<c.x+c.w&&x<IM.W;x+=sx){h[IM.lum[y*IM.W+x]]++;tot++}
+ return tot?otsuH(h,tot):128}
+/* il ritaglio con il registro fine applicato */
+function crop(){const c=IM.crop;
+ return{x:c.x+(IM.ox||0), y:c.y+(IM.oy||0), w:c.w, h:c.h}}
 function imAuto(){const sc=imCells();if(!sc)return;$('#imT').value=otsu(sc.a)}
 
 function imBits(sc,t){
@@ -1441,7 +1466,7 @@ function imPv(){
 
 /* ---- riconoscimento della griglia: cerca il passo che si ripete nei bordi ---- */
 function profile(axis){
- const c=IM.crop, n=Math.max(2,Math.round(axis==='x'?c.w:c.h));
+ const c=crop(), n=Math.max(2,Math.round(axis==='x'?c.w:c.h));
  const p=new Float64Array(n);
  const other=Math.round(axis==='x'?c.h:c.w), st=Math.max(1,Math.floor(other/160));
  for(let i=0;i<n-1;i++){let s=0,cnt=0;
@@ -1467,7 +1492,7 @@ function bestPeriod(p){
  return 0}
 function imGuess(quiet){
  if(!IM||!IM.lum)return;
- const c=IM.crop, px=bestPeriod(profile('x')), py=bestPeriod(profile('y'));
+ const c=crop(), px=bestPeriod(profile('x')), py=bestPeriod(profile('y'));
  let ok=0;
  if(px>3){const n=Math.round(c.w/px);if(n>=2&&n<=48){$('#imC').value=n;ok++}}
  if(py>3){const n=Math.round(c.h/py);if(n>=2&&n<=200){$('#imR').value=n;ok++}}
@@ -1482,7 +1507,7 @@ function imKeepRows(){
  $('#imR').value=clamp(Math.round(cols*ar*q.r/q.s),2,200)}
 
 function imThumb(){
- try{const c=IM.crop, sc=Math.min(1,200/Math.max(c.w,c.h));
+ try{const c=crop(), sc=Math.min(1,200/Math.max(c.w,c.h));
   const o=document.createElement('canvas');
   o.width=Math.max(1,Math.round(c.w*sc));o.height=Math.max(1,Math.round(c.h*sc));
   const x=o.getContext('2d');if(!x)return '';
@@ -1511,7 +1536,14 @@ $('#imT').oninput=imPv;
 $('#imAuto').onclick=()=>{imAuto();imPv()};
 $('#imInv').onclick=()=>{if(IM){IM.inv=IM.inv?0:1;imPv()}};
 $('#imGuess').onclick=()=>imGuess(0);
-$('#imAll').onclick=()=>{if(IM&&IM.img){IM.crop={x:0,y:0,w:IM.W,h:IM.H};imKeepRows();imAuto();imDraw();imPv()}};
+$('#imAll').onclick=()=>{if(IM&&IM.img){IM.crop={x:0,y:0,w:IM.W,h:IM.H};IM.ox=0;IM.oy=0;
+ $('#imOX').value=0;$('#imOY').value=0;IM.gt=darkCut();imKeepRows();imAuto();imDraw();imPv()}};
+/* registro fine: sposta la griglia di qualche punto senza rifare il ritaglio */
+const imOff=()=>{if(!IM)return;
+ IM.ox=clamp(+$('#imOX').value|0,-60,60);IM.oy=clamp(+$('#imOY').value|0,-60,60);
+ IM.gt=darkCut();imAuto();imDraw();imPv()};
+$('#imOX').onchange=imOff;$('#imOY').onchange=imOff;
+$('#imOZ').onclick=()=>{$('#imOX').value=0;$('#imOY').value=0;imOff()};
 $('#imX').onclick=imClose;
 $('#imMod').addEventListener('pointerdown',e=>{if(e.target===$('#imMod'))imClose()});
 $('#imCv').addEventListener('pointerdown',e=>{
@@ -1528,7 +1560,7 @@ $('#imCv').addEventListener('pointermove',e=>{
  if(x1-x0<8||y1-y0<8)return;
  IM.crop={x:x0,y:y0,w:x1-x0,h:y1-y0};imDraw()});
 $('#imCv').addEventListener('pointerup',()=>{
- if(IM&&IM.drag){IM.drag=null;imKeepRows();imAuto();imDraw();imPv()}});
+ if(IM&&IM.drag){IM.drag=null;IM.gt=darkCut();imKeepRows();imAuto();imDraw();imPv()}});
 $('#imOk').onclick=()=>{
  const sc=imCells();
  if(!sc){$('#imWarn').textContent='Prima carica un’immagine.';return}
@@ -1645,7 +1677,7 @@ function rowsOf(q,g){return q.unit==='cm'?clamp(Math.round((q.hcm||40)*g.r/10),1
    L = archivio (campioni + progetti + contagiri locali + impostazioni).
    S = il progetto aperto. Campioni e progetti hanno un id e una data di modifica,
    così la sincronizzazione sa chi è più recente senza sovrascrivere il lavoro altrui. */
-function np(n){return{name:n,unit:'st',rows:120,hcm:40,shapes:[],div:[],regions:[],paint:[],pts:[],ruler:[],rcl:0}}
+function np(n){return{name:n,unit:'st',rows:120,hcm:40,shapes:[],div:[],regions:[],paint:[],add:[],rem:[],pts:[],ruler:[],rcl:0}}
 function ng(n){return{id:uid(),n:n,note:'',img:'',sm:36,sr:62,sw:10,sh:10,wt:0,cr:now(),up:now()}}
 function nproj(n){return{id:uid(),name:n||'',note:'',machine:'Silver Reed SK280',needles:200,
  yn:YN.map(()=>''),ps:[np('Davanti')],cur:0,cr:now(),up:now()}}
@@ -1672,7 +1704,9 @@ function fixProj(z){
   q.ruler=q.ruler||[]; q.rcl=q.rcl?1:0;
   q.pts=fxpt(q.pts); q.ruler=fxpt(q.ruler);
   q.shapes.forEach(sh=>{if(sh.mask)sh.mask=sh.mask.map(s=>toU8(s,W));else sh.pts=fxpt(sh.pts)});
-  q.paint=(q.paint||[]).map(s=>toU8(s,W))});
+  q.paint=(q.paint||[]).map(s=>toU8(s,W));
+  q.add=(q.add||[]).map(s=>toU8(s,W));
+  q.rem=(q.rem||[]).map(s=>toU8(s,W))});
  return z}
 /* un punto è [maglia, riga, pancia]: i disegni vecchi ne hanno solo due, la pancia nasce a 0 */
 function fxpt(A){return(Array.isArray(A)?A:[]).filter(v=>Array.isArray(v)&&v.length>=2)
@@ -1779,6 +1813,40 @@ function splitSeg(P,i,t){
  P[i]=[A[0],A[1],bowOf(A,M,A1)];
  P.splice(i+1,0,[M[0],M[1],bowOf(M,B,B1)]);
  return i+1}
+/* ---------- maniglie sul vertice ----------
+   Una linea che esce dal vertice con un quadratino in fondo: ruotandola,
+   i due tratti che passano di lì si piegano per uscire in quella direzione,
+   raccordati fra loro. È la rotazione sul vertice dei programmi di disegno. */
+const nrm2=d=>{const L=Math.hypot(d[0],d[1])||1;return[d[0]/L,d[1]/L]};
+/* verso con cui la curva esce dal vertice i, in maglie e righe */
+function tangDir(G,P,i){
+ const n=G.length;if(n<2||!G[i])return[1,0];
+ if(i<n-1){const C=ctrl(G[i],G[i+1],bw(P[i]));
+  let d=[C[0]-G[i][0],C[1]-G[i][1]];
+  if(!d[0]&&!d[1])d=[G[i+1][0]-G[i][0],G[i+1][1]-G[i][1]];
+  return nrm2(d)}
+ const C=ctrl(G[i-1],G[i],bw(P[i-1]));
+ let d=[G[i][0]-C[0],G[i][1]-C[1]];
+ if(!d[0]&&!d[1])d=[G[i][0]-G[i-1][0],G[i][1]-G[i-1][1]];
+ return nrm2(d)}
+/* la pancia che fa passare il controllo sulla semiretta uscente da Q nel verso v */
+function bowFor(P0,P1,Q,v){
+ const dx=P1[0]-P0[0], dy=P1[1]-P0[1];
+ const det=-(v[0]*dx+v[1]*dy);
+ if(Math.abs(det)<1e-7)return null;
+ const wx=(P0[0]+P1[0])/2-Q[0], wy=(P0[1]+P1[1])/2-Q[1];
+ const t=(wx*(-dx)-dy*wy)/det;
+ if(t<=0)return null;                  /* il controllo cadrebbe dalla parte sbagliata */
+ return clamp((v[0]*wy-v[1]*wx)/det,-3,3)}
+/* applica il verso u al vertice i: piega il tratto che parte e quello che arriva */
+function tangApply(A,i,u,kx,ky){
+ const G=A.map(v=>[v[0]*(kx||1),v[1]*(ky||1)]), n=A.length;let ch2=0;
+ if(i<n-1){const b=bowFor(G[i],G[i+1],G[i],u);
+  if(b!==null){A[i]=[A[i][0],A[i][1],b];ch2=1}}
+ if(i>0){const b=bowFor(G[i-1],G[i],G[i],[-u[0],-u[1]]);
+  if(b!==null){A[i-1]=[A[i-1][0],A[i-1][1],b];ch2=1}}
+ return ch2}
+
 /* quanti tratti ha una spezzata: chiusa ne ha uno in più */
 const nSeg=(P,closed)=>P.length<2?0:(closed&&P.length>2?P.length:P.length-1);
 
@@ -1808,6 +1876,14 @@ function prep(){
   if(sh.mask){for(let r=0;r<Math.min(H,sh.mask.length);r++){const m=sh.mask[r];for(let c=0;c<Math.min(W,m.length);c++)if(m[c])grid[r][c]=1}return}
   polysOf(sh,kx,ky).forEach(P=>stamp(grid,P,W,H,sh.sub));
  });
+ /* ritocchi a mano: aggiungono o tolgono singole maglie sopra le forme */
+ const fit2=k=>{if(!q[k])q[k]=[];
+  while(q[k].length<H)q[k].push(U8(W));
+  if(q[k].length>H)q[k].length=H;
+  for(let r=0;r<H;r++)if(q[k][r].length!==W){const z=U8(W);z.set(q[k][r].subarray(0,Math.min(W,q[k][r].length)));q[k][r]=z}};
+ fit2('add');fit2('rem');
+ for(let r=0;r<H;r++){const a1=q.add[r],r1=q.rem[r];
+  for(let c=0;c<W;c++){if(a1[c])grid[r][c]=1;if(r1[c])grid[r][c]=0}}
  /* pennello: stessa dimensione della griglia, in maglie */
  while(q.paint.length<H)q.paint.push(U8(W));
  if(q.paint.length>H)q.paint.length=H;
@@ -1943,6 +2019,15 @@ function draw(){
  paths.forEach((L2,k)=>{x.strokeStyle=ZP[k%8][1];x.beginPath();
   for(let i=0;i<L2.length;i+=4){x.moveTo(L2[i],L2[i+1]);x.lineTo(L2[i+2],L2[i+3])}x.stroke()});
 
+ /* ritocchi a mano: un puntino, così sai cosa hai spostato tu */
+ if(mode==='draw'&&(q.add&&q.add.length)){
+  const rr=Math.max(1.1,Math.min(cw,ch)*.16);
+  for(let r=0;r<H;r++){const a1=q.add[r],r1=q.rem[r];if(!a1||!r1)continue;
+   for(let c=0;c<W;c++){
+    if(!a1[c]&&!r1[c])continue;
+    x.fillStyle=a1[c]?'rgba(29,122,79,.85)':'rgba(194,59,48,.85)';
+    x.beginPath();x.arc(XC(c)+cw/2,Y(r+1)+ch/2,rr,0,7);x.fill()}}}
+
  /* divisioni, mediana */
  x.setLineDash([6,4]);x.lineWidth=1.5;x.strokeStyle='#1d2742';
  a.div.forEach(v=>{x.beginPath();x.moveTo(XC(0),Y(v));x.lineTo(XC(W),Y(v));x.stroke()});
@@ -2043,13 +2128,26 @@ function draw(){
    if(seg.length>1){const tot=seg.reduce((k,z)=>k+z.cm,0),e=G[G.length-1];
     chip(x,X(e[0]),Y(e[1])-31,'tot '+cm1(tot)+' cm',col,1)}}
   if(tool==='draw')bows(G,P,closed,col,bHot);
+  /* maniglia di rotazione sul vertice scelto: linea e quadratino */
+  const ti=tDrag>=0?tDrag:selP;
+  if(tool==='draw'&&G.length>1&&ti>=0&&G[ti]){
+   const t=tangPos(G,P,ti), vx=X(G[ti][0]),vy=Y(G[ti][1]),tx=X(t[0]),ty=Y(t[1]);
+   x.strokeStyle=col;x.lineWidth=1.4;x.setLineDash([4,3]);
+   x.beginPath();x.moveTo(vx,vy);x.lineTo(tx,ty);x.stroke();x.setLineDash([]);
+   /* e la stessa dall'altra parte: si vede che è un asse che ruota */
+   x.globalAlpha=.4;x.beginPath();x.moveTo(vx,vy);x.lineTo(vx-(tx-vx),vy-(ty-vy));x.stroke();x.globalAlpha=1;
+   const sq=tDrag>=0?6:5;
+   x.beginPath();x.rect(tx-sq,ty-sq,sq*2,sq*2);
+   x.fillStyle=tDrag>=0?col:'#fff';x.fill();
+   x.strokeStyle=col;x.lineWidth=2.2;x.stroke()}
   if(mir)dots(M,'rgba(194,59,48,.45)',-1);dots(G,col,selP)}}
 
 function nrm(d){return{c0:Math.min(d.c0,d.c1),c1:Math.max(d.c0,d.c1),r0:Math.min(d.r0,d.r1),r1:Math.max(d.r0,d.r1)}}
 
 /* ---------- righello e misure dei tratti ---------- */
 const RUL='#c2369b';
-let rSel=-1,rDrag=-1,bDrag=-1,bWho='',bHot=-1,showMs=1;
+let rSel=-1,rDrag=-1,bDrag=-1,bWho='',bHot=-1,showMs=1,tDrag=-1;
+const TANG=34;   /* lunghezza della maniglia, in punti schermo */
 function chip(x,px,py,txt,col,inv,nx,ny){
  x.font='700 11px DM Sans,system-ui,sans-serif';
  x.textAlign='center';x.textBaseline='middle';
@@ -2093,6 +2191,18 @@ function pathSegs(P,closed){
   return{...sg,cm:cmv,dS,dR,m,r,bo:b,lab}})}
 function rulSegs(){const q=p();return pathSegs(q.ruler,!!(q.rcl&&q.ruler.length>2))}
 function shapeSegs(){return pathSegs(p().pts,0)}
+
+/* dove sta il quadratino: sempre a distanza fissa sullo schermo dal vertice */
+function tangPos(G,P,i){
+ const g=GM,u=tangDir(G,P,i);
+ const px=Math.hypot(u[0]*(g.cw||8),u[1]*(g.ch||8))||1;
+ const k=TANG/px;
+ return[G[i][0]+u[0]*k, G[i][1]+u[1]*k]}
+function nearTang(A,i,c){
+ if(i<0||!A[i])return 0;
+ const a=prep(),g=GM,G=A.map(v=>[v[0]*a.kx,v[1]*a.ky]);
+ const t=tangPos(G,A,i);
+ return Math.hypot((t[0]-c.u)*g.cw,(t[1]-c.v)*g.ch)<=12}
 
 /* punto più vicino di una spezzata, in pixel */
 function nearPt(A,c){
@@ -2297,6 +2407,39 @@ function bn(){
  el.querySelectorAll('.ch[data-s]').forEach(b=>b.onclick=()=>{side=+b.dataset.s;render()});
  const bj=$('#bj');if(bj)bj.onclick=()=>{setDONE(a.zmin[ss.k]);render();center()}}
 
+/* ---------- forme già chiuse: si riaprono per rimettere mano ai punti ---------- */
+function shapeList(){
+ const el=$('#fl');if(!el)return;
+ const q=p();
+ if(mode!=='draw'){el.innerHTML='';return}
+ const vive=q.shapes.map((sh,i)=>({sh,i})).filter(z=>z.sh.pts&&z.sh.pts.length);
+ const mani=q.shapes.filter(sh=>sh.mask).length;
+ if(!vive.length&&!mani){el.innerHTML='';return}
+ el.innerHTML='<div class="sbh">Forme chiuse</div>'+
+  vive.map(z=>{
+   const sh=z.sh,n=sh.pts.length;
+   const curve=sh.pts.some(v=>+(v&&v[2]));
+   return '<div class="sq"><span class="nmm">forma '+(z.i+1)+'</span>'+
+    '<span class="sv">'+n+(n===1?' punto':' punti')+'</span>'+
+    '<span class="mu">'+(sh.sub?'sottratta dal disegno':'aggiunta al disegno')+
+     (sh.mir?' · specchiata':'')+(curve?' · con curve':'')+'</span>'+
+    '<span class="tr" style="gap:5px;margin-top:4px">'+
+     '<button data-ro="'+z.i+'">Riapri</button>'+
+     '<button data-rd="'+z.i+'">Elimina</button></span></div>'}).join('')+
+  (mani?'<p class="st">E '+mani+(mani===1?' forma fissata in maglie: quella si ritocca col pennello dei bordi.'
+    :' forme fissate in maglie: quelle si ritoccano col pennello dei bordi.')+'</p>':'');
+ el.querySelectorAll('[data-ro]').forEach(b=>b.onclick=()=>{
+  if(q.pts.length){msg='Hai già una forma in corso: chiudila o togli i punti prima di riaprirne un’altra.';render();return}
+  pushUndo();
+  const sh=q.shapes.splice(+b.dataset.ro,1)[0];
+  q.pts=sh.pts.map(v=>[v[0],v[1],+(v[2]||0)]);
+  sub=sh.sub?1:0;mir=sh.mir?1:0;tool='draw';selP=-1;A=null;
+  msg='Forma riaperta con tutti i suoi punti: spostali, curvali, poi «Chiudi la forma».';
+  save();render()});
+ el.querySelectorAll('[data-rd]').forEach(b=>b.onclick=()=>{
+  pushUndo();q.shapes.splice(+b.dataset.rd,1);A=null;
+  msg='Forma eliminata.';save();render()})}
+
 /* ---------- inclinazioni: aghi e righe da mettere in lavoro ----------
    Cambiando l'inclinazione di un tratto questo elenco si rifà da sé, anche
    mentre trascini: dice quante maglie calare o aumentare e ogni quante righe. */
@@ -2385,7 +2528,11 @@ function gaugePanel(){
 function hint(){
  const q=p(),P=q.pts;let t=msg;
  if(!t){
-  if(patTool())t=tool==='area'?'Trascina un rettangolo sul disegno per creare l’area scelta.':
+  if(tool==='edge'){const q2=p();
+   let n2=0;(q2.add||[]).forEach(r2=>r2.forEach(v=>{if(v)n2++}));(q2.rem||[]).forEach(r2=>r2.forEach(v=>{if(v)n2++}));
+   t='Tocca una maglia per aggiungerla o toglierla: così sposti gli scalini di aumenti e diminuzioni come vuoi tu. Trascinando continui nello stesso verso.'+
+    (n2?' Finora '+n2+(n2===1?' maglia ritoccata.':' maglie ritoccate.'):'')}
+  else if(patTool())t=tool==='area'?'Trascina un rettangolo sul disegno per creare l’area scelta.':
    tool==='paint'?'Trascina sul disegno per colorare le maglie con il colore scelto.':'Trascina per togliere il colore dalle maglie.';
   else if(mode==='work')t='Tocca una parte sul disegno o nell’elenco per scegliere quale stai lavorando.';
   else if(mode==='gauge')t='Il campione attivo converte i disegni fatti in centimetri e stima il filato.';
@@ -2395,13 +2542,18 @@ function hint(){
    :'Tieni premuto su un punto e spostalo: le misure si aggiornano mentre muovi. Il cerchietto vuoto a metà tratto: trascinalo per curvare, toccalo per infilare un punto nuovo.'+(p().rcl?'':' Portando l’ultimo punto sul primo si chiude l’anello.')}
  else if(tool==='meas')t='Trascina un rettangolo per misurarlo, oppure tocca una zona colorata per averne il conteggio.';
   else if(tool==='div')t='Tocca una riga della griglia per mettere o togliere una linea di divisione.';
-  else if(selP>=0&&P[selP])t='Punto selezionato: '+(q.unit==='cm'?cm1(P[selP][0])+' cm · '+cm1(P[selP][1])+' cm':lv(P[selP][0])+' · riga '+P[selP][1])+'. Tocca dove spostarlo.';
+  else if(selP>=0&&P[selP])t='Punto scelto: '+(q.unit==='cm'?cm1(P[selP][0])+' cm · '+cm1(P[selP][1])+' cm':lv(P[selP][0])+' · riga '+P[selP][1])+
+   '. Trascinalo per spostarlo, oppure trascina il quadratino in fondo alla linea tratteggiata per ruotare su questo vertice: i due tratti si piegano raccordati. Toccalo di nuovo per lasciarlo.';
   else if(P.length)t=P.length+(P.length===1?' punto. ':' punti. ')+(mir&&oneSided(P)?'Un solo lato con lo specchio: «Chiudi» unisce da sola i due lati. ':'')+
+   (selP>=0
+    ?'Punto scelto: trascina il quadratino in fondo alla linea tratteggiata per ruotare su questo vertice, e i due tratti si piegano raccordati. '
+    :'Tocca un punto per sceglierlo: compare la maniglia per ruotare su quel vertice. ')+
    'Trascina un punto per spostarlo. Il cerchietto a metà tratto: trascinalo per curvare la linea, toccalo per infilare un vertice nuovo.';
   else t='Tocca la griglia per mettere i punti. Con lo specchio acceso basta disegnare un lato. Rotellina del mouse o due dita sul touchpad per ingrandire.'}
  $('#ht').textContent=t}
 
 const patTool=()=>tool==='area'||tool==='paint'||tool==='erase';
+const edgeTool=()=>tool==='edge';
 function ui(){
  document.querySelectorAll('#vProj nav button').forEach(b=>b.classList.toggle('on',b.dataset.m===mode));
  const sh=(id,v)=>{const e=$(id);if(e)e.hidden=!v};
@@ -2422,6 +2574,7 @@ function ui(){
  const isDraw=tool==='draw';
  ['#hMod','#bSub','#bMi','#sbSnap','#hFor','#bCl','#bUn','#bFl'].forEach(k=>{const e=$(k);if(e)e.hidden=!isDraw||mode!=='draw'});
  ['#hRul','#rlUn','#rlCl','#rlFl'].forEach(k=>{const e=$(k);if(e)e.hidden=tool!=='rule'||mode!=='draw'});
+ ['#hEdg','#bEdZ'].forEach(k=>{const e=$(k);if(e)e.hidden=tool!=='edge'||mode!=='draw'});
  {const bm=$('#bMs');if(bm)bm.classList.toggle('on',!!showMs)}
  ['#hAre','#sbArea'].forEach(k=>{const e=$(k);if(e)e.hidden=tool!=='area'});
  ['#hCol','#sbCol'].forEach(k=>{const e=$(k);if(e)e.hidden=!(tool==='paint'||tool==='erase')});
@@ -2436,7 +2589,7 @@ function ui(){
 function render(){ui();
  if(mode==='gauge'){gaugePanel();return}
  draw();rulers();measure();footBoxes();
- if(mode==='work')bn();else{slopeList();regionList()}}
+ if(mode==='work')bn();else{shapeList();slopeList();regionList()}}
 
 /* ---------- archivio dei progetti ---------- */
 function projPanel(){
@@ -2495,7 +2648,7 @@ function fill(){
 let UNDO=[],REDO=[],uKey='';
 function shot(){const q=p();
  return JSON.stringify({s:q.shapes,d:q.div,r:q.regions,pa:q.paint,pt:q.pts,
-  ro:q.rows,hc:q.hcm,un:q.unit,sb:sub,mi:mir},REP)}
+  ad:q.add,rm:q.rem,ro:q.rows,hc:q.hcm,un:q.unit,sb:sub,mi:mir},REP)}
 /* la pila vale per un solo pezzo: cambiando pezzo o progetto riparte da zero */
 function uKeep(){const k=S.id+'|'+S.cur;if(k!==uKey){UNDO=[];REDO=[];uKey=k}}
 function pushUndo(){
@@ -2506,9 +2659,10 @@ function applySnap(j){
  const q=p(),o=JSON.parse(j),W=S.needles;
  q.shapes=(o.s||[]).map(sh=>sh.mask?{mask:sh.mask.map(x=>toU8(x,W))}:sh);
  q.div=o.d||[];q.regions=o.r||[];q.paint=(o.pa||[]).map(x=>toU8(x,W));q.pts=o.pt||[];
+ q.add=(o.ad||[]).map(x=>toU8(x,W));q.rem=(o.rm||[]).map(x=>toU8(x,W));
  q.rows=o.ro;q.hcm=o.hc;q.unit=o.un;
  sub=o.sb?1:0;mir=o.mi?1:0;
- selP=-1;sel=null;A=null;PT=null;rSel=-1;bHot=-1;bDrag=-1;pDrag=-1}
+ selP=-1;sel=null;A=null;PT=null;rSel=-1;bHot=-1;bDrag=-1;pDrag=-1;tDrag=-1}
 function step(from,to,word){
  uKeep();
  if(!from.length){msg='Non c’è nulla da '+word+'.';render();return}
@@ -2543,6 +2697,8 @@ function fixPiece(){
  n.div=(n.div||[]).map(v=>Math.round(v*ky));
  n.regions=(n.regions||[]).map(r=>({...r,x0:Math.round(r.x0*kx),x1:Math.round(r.x1*kx),y0:Math.round(r.y0*ky),y1:Math.round(r.y1*ky)}));
  n.paint=(n.paint||[]).map(s=>Uint8Array.from(s,Number));
+ n.add=(n.add||[]).map(s=>Uint8Array.from(s,Number));
+ n.rem=(n.rem||[]).map(s=>Uint8Array.from(s,Number));
  n.pts=[];n.hold=null;
  S.ps.push(n);S.cur=S.ps.length-1;A=null;selP=-1;side=0;sel=null;
  msg='Pezzo fissato in maglie e righe con il campione «'+(GA().c.n||'')+'». L’originale in centimetri è rimasto.';
@@ -2553,7 +2709,8 @@ function resizeN(n){
  S.ps.forEach(q=>{
   q.shapes.forEach(sh=>{if(sh.mask)sh.mask=sh.mask.map(r=>{const z=U8(n);for(let c=0;c<r.length;c++){const k=c+d;if(k>=0&&k<n)z[k]=r[c]}return z});
    else if(q.unit!=='cm')sh.pts=sh.pts.map(v=>[clamp(v[0],-hh,hh),v[1],bw(v)])});
-  q.paint=q.paint.map(r=>{const z=U8(n);for(let c=0;c<r.length;c++){const k=c+d;if(k>=0&&k<n)z[k]=r[c]}return z});
+  const shift=a2=>(a2||[]).map(r=>{const z=U8(n);for(let c=0;c<r.length;c++){const k=c+d;if(k>=0&&k<n)z[k]=r[c]}return z});
+  q.paint=shift(q.paint);q.add=shift(q.add);q.rem=shift(q.rem);
   if(q.unit!=='cm'){q.pts=q.pts.map(v=>[clamp(v[0],-hh,hh),v[1],bw(v)]);
    q.ruler=q.ruler.map(v=>[clamp(v[0],-hh,hh),v[1],bw(v)])}});
  S.needles=n;A=null;selP=-1;sel=null}
@@ -2571,6 +2728,18 @@ function snapPt(c){ /* dalle coordinate in maglie alle unità del pezzo, agganci
  return[clamp(Math.round(x/st)*st,-GM.h*10/g.s,GM.h*10/g.s), clamp(Math.round(y/st)*st,0,q.hcm)]}
 function near(pt){const q=p(),g=GA(),[kx,ky]=kxy(q,g);
  return q.pts.findIndex(([a,b])=>Math.abs(a-pt[0])*kx<.6&&Math.abs(b-pt[1])*ky<.6)}
+/* ritocca il bordo: una maglia alla volta, sopra le forme già chiuse.
+   Il primo tocco decide se stai aggiungendo o togliendo; trascinando continua uguale. */
+function edgeAt(c,force){
+ const q=p(),a=prep(),{r,c:cc}=cellAt(c);
+ if(r<0||r>=a.H||cc<0||cc>=a.W)return 0;
+ if(!q.add[r]||!q.rem[r])return 0;
+ const on=!!a.g[r][cc];
+ const want=force===null||force===undefined?(on?0:1):force;
+ if(dn&&dn.ev===undefined&&force===null)dn.ev=want;
+ if(want){q.add[r][cc]=1;q.rem[r][cc]=0}
+ else{q.rem[r][cc]=1;q.add[r][cc]=0}
+ return on!==!!want}
 function paintAt(c){const q=p(),a=prep(),{r,c:cc}=cellAt(c);
  if(!a.g[r]||!a.g[r][cc])return;const v=tool==='erase'?0:yc;
  if(q.paint[r][cc]!==v){q.paint[r][cc]=v;return 1}}
@@ -2592,16 +2761,26 @@ cv.addEventListener('pointerdown',e=>{
     q.ruler.push([pt[0],pt[1],0]);rSel=rDrag=q.ruler.length-1;save()}}
   msg='';render()}
  else if(mode==='draw'&&tool==='draw'){
-  const q=p(),i=nearPt(q.pts,c);
-  if(i>=0){pDrag=i;selP=i;msg='';render()}             /* trascina il vertice */
-  else{const b=nearBow(q.pts,0,c);
-   if(b>=0){bDrag=b;bWho='p';bHot=b;msg='';render()}}}
+  const q=p();
+  if(selP>=0&&q.pts.length>1&&nearTang(q.pts,selP,c)){
+   tDrag=selP;msg='';render()}                         /* ruota sul vertice */
+  else{const i=nearPt(q.pts,c);
+   if(i>=0){dn.s0=selP;pDrag=i;selP=i;msg='';render()} /* trascina il vertice */
+   else{const b=nearBow(q.pts,0,c);
+    if(b>=0){bDrag=b;bWho='p';bHot=b;msg='';render()}}}}
  else if(mode==='draw'&&tool==='meas'){sel=null;drag={c0:k.c,c1:k.c,r0:k.r,r1:k.r};render()}
  else if(mode==='draw'&&tool==='area'){drag={c0:k.c,c1:k.c,r0:k.r,r1:k.r};render()}
+ else if(mode==='draw'&&tool==='edge'){pushUndo();if(edgeAt(c,null)){A=null;save();render()}}
  else if(mode==='draw'&&(tool==='paint'||tool==='erase')){pushUndo();if(paintAt(c)){save();render()}}});
 cv.addEventListener('pointermove',e=>{
  if(!dn||!GM.cw)return;const c=at(e);
  if(Math.abs(c.u-dn.u)>.7||Math.abs(c.v-dn.v)>.7)dn.mv=1;
+ if(tDrag>=0){const q=p(),a=prep();
+  if(!q.pts[tDrag]){tDrag=-1;return}
+  if(dn.mv)dragPush();
+  const u=nrm2([c.u-q.pts[tDrag][0]*a.kx, c.v-q.pts[tDrag][1]*a.ky]);
+  if(tangApply(q.pts,tDrag,u,a.kx,a.ky)){A=null;render()}
+  return}
  if(bDrag>=0){const o=bWho==='r'?{A:p().ruler,cl:!!(p().rcl&&p().ruler.length>2)}:{A:p().pts,cl:0};
   if(!o.A[bDrag]){bDrag=-1;return}
   if(dn.mv)dragPush();
@@ -2613,10 +2792,14 @@ cv.addEventListener('pointermove',e=>{
   return}
  if(rDrag>=0){const q=p();const pt=snapPt(c);q.ruler[rDrag]=[pt[0],pt[1],bw(q.ruler[rDrag])];render();return}
  if(drag){const k=cellAt(c);drag.c1=k.c;drag.r1=k.r;render()}
+ else if(mode==='draw'&&tool==='edge'&&dn.mv){if(edgeAt(c,dn.ev)){A=null;render()}}
  else if(mode==='draw'&&(tool==='paint'||tool==='erase')&&dn.mv){if(paintAt(c))render()}});
 cv.addEventListener('pointerup',e=>{
  if(!GM.cw){dn=null;return}
  const c=at(e),q=p(),g=GA(),[kx,ky]=kxy(q,g);
+ if(tDrag>=0){tDrag=-1;
+  if(dn&&dn.mv)msg='Vertice ruotato: i due tratti escono raccordati da lì.';
+  dn=null;save();render();return}
  if(bDrag>=0){
   const who=bWho,i=bDrag;bDrag=-1;
   const o=who==='r'?{A:q.ruler,cl:!!(q.rcl&&q.ruler.length>2)}:{A:q.pts,cl:0};
@@ -2627,7 +2810,8 @@ cv.addEventListener('pointerup',e=>{
    bHot=i;msg='Punto nuovo sul tratto: trascinalo per cambiare la linea.'}
   dn=null;save();render();return}
  if(pDrag>=0){const i=pDrag;pDrag=-1;
-  if(dn&&!dn.mv){selP=selP===i?-1:i;msg=''}            /* tocco secco: seleziona o libera */
+  /* tocco secco: sceglie il punto, e solo se era già scelto lo libera */
+  if(dn&&!dn.mv){selP=(dn.s0===i)?-1:i;msg=''}
   dn=null;save();render();return}
  if(rDrag>=0){
   /* due punti nello stesso posto: chiudi l'anello invece di sovrapporli */
@@ -2657,6 +2841,7 @@ function tap(c){
   if(a.g[k.r]&&a.g[k.r][k.c]){const i=f.cur.findIndex(s=>s.k===a.id[k.r*a.W+k.c]);if(i>=0)side=i}
   return}
  if(tool==='rule')return;
+ if(tool==='edge')return;
  if(patTool()){if(tool!=='area')paintAt(c);return}
  if(tool==='meas'){
   if(a.g[k.r]&&a.g[k.r][k.c])sel={kind:'zone',k:a.id[k.r*a.W+k.c]};else sel=null;return}
@@ -2689,6 +2874,7 @@ const IC={
  redo:'<path d="M12 8a5 5 0 1 0-1.7 3.8"/><path d="M13.5 4.5v4h-4"/>',
  zin:'<circle cx="6.8" cy="6.8" r="4.8"/><path d="M6.8 4.6v4.4M4.6 6.8h4.4M10.4 10.4 15 15"/>',
  zout:'<circle cx="6.8" cy="6.8" r="4.8"/><path d="M4.6 6.8h4.4M10.4 10.4 15 15"/>',
+ edge:'<path d="M1.5 14h4v-4h4V6h4V2"/><path d="M9.5 10h4" opacity=".4"/>',
  fit:'<path d="M2 6V2h4M14 6V2h-4M2 10v4h4M14 10v4h-4"/>',
  fitw:'<path d="M1.5 8h13M4 5 1.5 8 4 11M12 5l2.5 3L12 11"/>',
  straight:'<path d="M2.8 13.2 13.2 2.8"/><circle cx="2.4" cy="13.6" r="1.5"/><circle cx="13.6" cy="2.4" r="1.5"/>',
@@ -2707,13 +2893,14 @@ function buildChrome(){
   sbb('#sbTog','menu','Apri o chiudi la barra')+
   '<div class="sbsep"></div><div class="sbh">Strumenti</div>'+
   sbb('draw','draw','Traccia')+sbb('div','div','Linea di divisione')+sbb('meas','meas','Misura')+
-  sbb('rule','rule','Righello')+
+  sbb('rule','rule','Righello')+sbb('edge','edge','Ritocca i bordi')+
   sbb('area','area','Area motivo')+sbb('paint','paint','Pennello')+sbb('erase','erase','Gomma')+
   '<div class="sbsep"></div>'+
   '<div class="sbh" id="hMod">Modo</div>'+sbb('#bSub','add','Aggiungi')+sbb('#bMi','mirror','Specchio')+
   '<div class="sbg" id="sbSnap"><label>Aggancio<select id="sn"></select></label></div>'+
   '<div class="sbh" id="hFor">Forma</div>'+sbb('#bCl','check','Chiudi la forma')+sbb('#bUn','nopoint','Togli punto')+
   sbb('#bFl','straight','Raddrizza i tratti')+
+  '<div class="sbh" id="hEdg">Ritocco</div>'+sbb('#bEdZ','trash','Azzera i ritocchi')+
   '<div class="sbh" id="hRul">Righello</div>'+sbb('#rlUn','nopoint','Togli il punto')+
   sbb('#rlFl','straight','Raddrizza i tratti')+sbb('#rlCl','trash','Svuota il righello')+
   '<div class="sbh" id="hAre">Motivo</div>'+
@@ -2913,6 +3100,8 @@ function flatten(A,one){if(!A.length)return 0;
 $('#rlFl').onclick=()=>{const q=p();
  if(!flatten(q.ruler,-1)){msg='Nessuna curva da raddrizzare nel righello.';render();return}
  msg='Righello tutto diritto.';save();render()};
+dbl($('#bEdZ'),()=>{const q=p();pushUndo();q.add=[];q.rem=[];A=null;
+ msg='Ritocchi azzerati: restano solo le forme.';save();render()});
 $('#bFl').onclick=()=>{const q=p();pushUndo();
  if(!flatten(q.pts,-1)){UNDO.pop();uiUndo();msg='Nessuna curva da raddrizzare in questa forma.';render();return}
  A=null;msg='Forma tutta a tratti diritti.';save();render()};
@@ -2922,7 +3111,7 @@ $('#bMs').onclick=()=>{showMs=showMs?0:1;
 try{if(localStorage.getItem('mq-ms')==='0')showMs=0}catch(x){}
 $('#bUf').onclick=doUndo;
 $('#bRd').onclick=doRedo;
-dbl($('#bEm'),()=>{const q=p();pushUndo();q.shapes=[];q.div=[];q.regions=[];q.paint=[];q.pts=[];setDONE(0);q.hold=null;
+dbl($('#bEm'),()=>{const q=p();pushUndo();q.shapes=[];q.div=[];q.regions=[];q.paint=[];q.add=[];q.rem=[];q.pts=[];setDONE(0);q.hold=null;
  selP=-1;sel=null;A=null;msg='Pezzo svuotato.';save();render()});
 $('#bFx').onclick=fixPiece;
 let userZoom=0;   /* acceso solo quando l'ingrandimento lo decidi tu */
