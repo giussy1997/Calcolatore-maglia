@@ -488,13 +488,19 @@ nav button{flex:1 1 90px;padding:10px 6px;font-weight:700}
 <button id="ggImgDel">Togli la foto</button>
 </div>
 </div>
-<h3>Misure del campione</h3>
-<p class="st">Il campione può avere qualsiasi numero di maglie e righe: il peso viene riportato in proporzione.</p>
+<h3>Densità, dal righello</h3>
+<p class="st">Quello che leggi fra i due punti che il manuale ti fa contrassegnare: quante maglie e quante righe stanno nella distanza misurata. Da qui esce la densità, e con quella tutte le conversioni in centimetri.</p>
 <div class="g2">
-<label>Maglie del campione<input id="gg_sm" type="number" step="any"></label>
-<label>Righe del campione<input id="gg_sr" type="number" step="any"></label>
+<label>Maglie contate<input id="gg_sm" type="number" step="any"></label>
+<label>Righe contate<input id="gg_sr" type="number" step="any"></label>
 <label>Larghezza misurata (cm)<input id="gg_sw" type="number" step="any"></label>
 <label>Altezza misurata (cm)<input id="gg_sh" type="number" step="any"></label>
+</div>
+<h3>Peso, dal campione intero</h3>
+<p class="st">Il campione lo pesi tutto, non solo il pezzo misurato col righello. Scrivi quanti aghi avevi messo in lavoro <b>per lato</b> e quante righe hai fatto <b>in tutto</b>, come dice il manuale della macchina. Lasciandoli a zero, il peso resta riferito alle maglie e righe contate qui sopra, come prima.</p>
+<div class="g2">
+<label>Aghi in lavoro per lato<input id="gg_wl" type="number" step="1" min="0"></label>
+<label>Righe lavorate in tutto<input id="gg_wr" type="number" step="1" min="0"></label>
 <label>Peso del campione (g)<input id="gg_wt" type="number" step="any"></label>
 </div>
 <div class="ln" id="ggOut"></div>
@@ -926,6 +932,7 @@ function at(e){const b=cv.getBoundingClientRect(),g=GM;
  if(g.np>1&&rel>=g.W*g.cw+g.gap){p0=1;rel-=g.W*g.cw+g.gap}
  return{cx,cy,p:p0, c:Math.floor(rel/g.cw), r:g.H-1-Math.floor((cy-g.MT)/g.ch)}}
 cv.addEventListener('pointerdown',e=>{
+ if(e.pointerType==='touch')return;     /* col dito si sposta e si ingrandisce */
  if(!GM.cw||!SC)return;
  const p=at(e);
  try{cv.setPointerCapture(e.pointerId)}catch(x){}
@@ -944,28 +951,32 @@ cv.addEventListener('pointerdown',e=>{
  drag={v};
  if(setHole(pc,p.r,v)){touch();render()}});
 cv.addEventListener('pointermove',e=>{
+ if(e.pointerType==='touch')return;
  if(!drag||!GM.cw)return;const p=at(e);
  if(p.c<0||p.c>=GM.W||p.r<0||p.r>=GM.H)return;
  const pc=mode==='fab'?pcol(p.c,GM.W):p.c;
  if(setHole(pc,p.r,drag.v)){touch();render()}});
 addEventListener('pointerup',()=>{drag=null});
-/* rotellina e due dita: ingrandisce tenendo fermo il punto sotto il puntatore */
+/* ingrandisce tenendo fermo il punto sotto il dito o il puntatore */
+function zoomAtK(k,cx,cy){
+ const pane=$('#kcvw');if(!pane||!pane.clientWidth||!SC)return;
+ const b=pane.getBoundingClientRect(),pL=parseFloat(pane.style.paddingLeft)||0;
+ const w0=cv.clientWidth||1,h0=cv.clientHeight||1;
+ const fx=(cx-b.left+pane.scrollLeft-pL)/w0, fy=(cy-b.top+pane.scrollTop)/h0;
+ const z0=Z;Z=clamp(Z*k,.3,4);
+ if(Math.abs(Z-z0)<1e-6)return;
+ UZ=1;render();
+ const pL2=parseFloat(pane.style.paddingLeft)||0;
+ pane.scrollLeft=pL2+fx*(cv.clientWidth||1)-(cx-b.left);
+ pane.scrollTop=fy*(cv.clientHeight||1)-(cy-b.top)}
+/* rotellina del mouse o due dita sul touchpad */
 $('#kcvw').addEventListener('wheel',e=>{
  if(!GM.cw||!SC)return;
  let d=e.deltaY;if(e.deltaMode===1)d*=16;else if(e.deltaMode===2)d*=400;
  if(!d)return;
  e.preventDefault();
- const pane=$('#kcvw');
- if(e.shiftKey){pane.scrollTop+=d;return}
- const b=pane.getBoundingClientRect(),pL=parseFloat(pane.style.paddingLeft)||0;
- const w0=cv.clientWidth||1,h0=cv.clientHeight||1;
- const fx=(e.clientX-b.left+pane.scrollLeft-pL)/w0, fy=(e.clientY-b.top+pane.scrollTop)/h0;
- const z0=Z;Z=clamp(Z*Math.pow(.9986,clamp(d,-240,240)),.3,4);
- if(Math.abs(Z-z0)<1e-6)return;
- UZ=1;render();
- const pL2=parseFloat(pane.style.paddingLeft)||0;
- pane.scrollLeft=pL2+fx*(cv.clientWidth||1)-(e.clientX-b.left);
- pane.scrollTop=fy*(cv.clientHeight||1)-(e.clientY-b.top)},{passive:false});
+ if(e.shiftKey){$('#kcvw').scrollTop+=d;return}
+ zoomAtK(Math.pow(.9986,clamp(d,-240,240)),e.clientX,e.clientY)},{passive:false});
 
 /* i margini dei numeri non si ingrandiscono: l'adattamento va calcolato
    sulle sole caselle, altrimenti la scheda viene molto più piccola del dovuto */
@@ -1229,6 +1240,7 @@ function hint(){
    ?'Disegno unico: buchi dove vuoi e niente si ripete. Tutta la scheda è il tuo disegno.'
    :'Tocca o trascina per bucare. Disegni una volta sola il motivo nel riquadro blu: il resto della scheda lo riempie l’app. Per un disegno che non si ripete, premi «Motivo ripetuto» nella barra.';
  }
+ if(t&&MQ()&&MQ().coarse&&MQ().coarse())t+=' · Col dito sposti, con due dita ingrandisci, con la penna disegni.';
  $('#kht').textContent=t}
 
 function render(){
@@ -1620,7 +1632,9 @@ addEventListener('resize',()=>{if(SC&&$('#vSch').classList.contains('on')&&!UZ){
 
 /* quello che l'app principale può chiedere a questo pezzo */
 window.__SCH={fixCard,create:nsc,thumb:thumbURL,open:openCard,
- show(){if(SC){L=MQ().L;if(!UZ)fit();render()}},
+ show(){if(SC){L=MQ().L;
+  const q=MQ();if(q&&q.touch)q.touch($('#kcvw'),zoomAtK);
+  if(!UZ)fit();render()}},
  alive(){return !!(SC&&((MQ().L.cards)||[]).some(z=>z.id===SC.id&&!z.del))},
  name(c){return c.n||''},
  sub(c){return TEC[c.tech]+' · motivo '+c.rw+' × '+c.rh+' · '+c.rows+' righe'}};
@@ -1642,6 +1656,7 @@ const FBD={key:'AIzaSyBBHYzLfxZVL63DjX2HPCjkK4F-_KbCIrA',pid:'calcolatore-maglie
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 const nf=n=>n.toLocaleString('it-IT');
 const cm1=n=>n.toLocaleString('it-IT',{minimumFractionDigits:1,maximumFractionDigits:1});
+const cm2=n=>n.toLocaleString('it-IT',{minimumFractionDigits:2,maximumFractionDigits:2});
 
 let L, S, mode='draw', tool='draw', sub=0, mir=1, Z=1, A=null, PT=null, side=0, GM={}, selP=-1, msg='',
     sel=null, drag=null, dn=null, yc=1, snap='auto', rt='rib', rk='1x1', rev=6, rtop='L';
@@ -1667,9 +1682,16 @@ const oneSided=P=>P.length>=2&&(P.every(v=>v[0]>=-1e-9)||P.every(v=>v[0]<=1e-9))
 const U8=n=>new Uint8Array(n);
 
 /* ---------- campione e unità ---------- */
+/* maglie-riga del campione che hai pesato: tutti gli aghi in lavoro per tutte
+   le righe fatte. Se non li hai scritti, ripiego sul pezzo misurato col righello. */
+function wCells(c){
+ const n=(c.wl|0)*2, r=c.wr|0;
+ if(n>0&&r>0)return n*r;
+ return (c.sm*c.sr)||0}
 function GA(){const g=GS(),c=g.find(z=>z.id===L.gid)||g[0]||ng('Campione');
  const s=(c.sm/c.sw)*10||36, r=(c.sr/c.sh)*10||62;
- return{s,r,asp:s/r,gpc:(c.wt/(c.sm*c.sr))||0,c}}
+ const cel=wCells(c);
+ return{s,r,asp:s/r,gpc:(cel?c.wt/cel:0)||0,c}}
 function kxy(q,g){return q.unit==='cm'?[g.s/10,g.r/10]:[1,1]}
 function rowsOf(q,g){return q.unit==='cm'?clamp(Math.round((q.hcm||40)*g.r/10),10,1400):clamp(q.rows|0,10,1400)}
 
@@ -1678,7 +1700,9 @@ function rowsOf(q,g){return q.unit==='cm'?clamp(Math.round((q.hcm||40)*g.r/10),1
    S = il progetto aperto. Campioni e progetti hanno un id e una data di modifica,
    così la sincronizzazione sa chi è più recente senza sovrascrivere il lavoro altrui. */
 function np(n){return{name:n,unit:'st',rows:120,hcm:40,shapes:[],div:[],regions:[],paint:[],add:[],rem:[],pts:[],ruler:[],rcl:0}}
-function ng(n){return{id:uid(),n:n,note:'',img:'',sm:36,sr:62,sw:10,sh:10,wt:0,cr:now(),up:now()}}
+/* wl = aghi messi in lavoro per lato, wr = righe lavorate in tutto:
+   servono solo al peso, che si pesa sul campione intero, non sul pezzo misurato */
+function ng(n){return{id:uid(),n:n,note:'',img:'',sm:36,sr:62,sw:10,sh:10,wt:0,wl:0,wr:0,cr:now(),up:now()}}
 function nproj(n){return{id:uid(),name:n||'',note:'',machine:'Silver Reed SK280',needles:200,
  yn:YN.map(()=>''),ps:[np('Davanti')],cur:0,cr:now(),up:now()}}
 function freshL(){const l={v:3,gauges:[ng('Campione 1')],gid:null,projects:[nproj('')],pid:null,
@@ -1737,6 +1761,8 @@ function fromV2(j){
 function fixL(j){
  if(!j||!Array.isArray(j.projects))return 0;
  j.gauges=(j.gauges||[]).filter(g=>g&&g.id);
+ /* aghi per lato e righe del campione pesato: nei campioni vecchi non c'erano */
+ j.gauges.forEach(g=>{g.wl=clamp(+g.wl||0,0,400);g.wr=clamp(+g.wr||0,0,2000)});
  j.projects=j.projects.map(z=>z&&z.del?z:fixProj(z)).filter(Boolean);
  if(!j.projects.filter(z=>!z.del).length)j.projects.push(nproj(''));
  if(!j.gauges.filter(z=>!z.del).length)j.gauges.push(ng('Campione 1'));
@@ -2128,6 +2154,10 @@ function draw(){
    if(seg.length>1){const tot=seg.reduce((k,z)=>k+z.cm,0),e=G[G.length-1];
     chip(x,X(e[0]),Y(e[1])-31,'tot '+cm1(tot)+' cm',col,1)}}
   if(tool==='draw')bows(G,P,closed,col,bHot);
+  /* il tratto della penna mentre lo stai facendo */
+  if(fh&&fh.length>1){x.strokeStyle=col;x.lineWidth=2.6;x.globalAlpha=.55;
+   x.beginPath();fh.forEach((v,i)=>i?x.lineTo(X(v[0]),Y(v[1])):x.moveTo(X(v[0]),Y(v[1])));
+   x.stroke();x.globalAlpha=1}
   /* maniglia di rotazione sul vertice scelto: linea e quadratino */
   const ti=tDrag>=0?tDrag:selP;
   if(tool==='draw'&&G.length>1&&ti>=0&&G[ti]){
@@ -2513,7 +2543,7 @@ function gaugePanel(){
   (c.img?'<img class="th" src="'+c.img+'" alt="">':'<span class="th"></span>')+
   '<span class="gr"><b>'+esc(c.n||(c.v0?'Campione predefinito':'Senza nome'))+'</b><br><span class="mu">'+
    cm1(s)+' maglie e '+cm1(r)+' righe ogni 10 cm'+
-   (c.wt?' · '+((c.wt/(c.sm*c.sr))*1000).toFixed(2)+' mg per maglia-riga':' · senza peso')+
+   (c.wt?' · '+cm2((wCells(c)?c.wt/wCells(c):0)*1000)+' mg per maglia-riga':' · senza peso')+
    (c.note?'<br>'+esc(c.note):'')+'</span></span>'+
   (act?'<span class="ok">in uso</span>':'<button data-a="'+c.id+'">Usa questo</button>')+
   '<button data-e="'+c.id+'">Apri la scheda</button></div>'}).join('');
@@ -2550,7 +2580,11 @@ function hint(){
     :'Tocca un punto per sceglierlo: compare la maniglia per ruotare su quel vertice. ')+
    'Trascina un punto per spostarlo. Il cerchietto a metà tratto: trascinalo per curvare la linea, toccalo per infilare un vertice nuovo.';
   else t='Tocca la griglia per mettere i punti. Con lo specchio acceso basta disegnare un lato. Rotellina del mouse o due dita sul touchpad per ingrandire.'}
+ /* sul tablet vale la pena ricordare come si usano dita e penna */
+ if(t&&mode!=='gauge'&&coarse())t+=' · Col dito sposti il foglio, con due dita ingrandisci. Con la penna: tocchi per mettere un punto, trascini per tracciare a mano libera.';
  $('#ht').textContent=t}
+let _co=null;
+function coarse(){if(_co===null){try{_co=matchMedia('(pointer:coarse)').matches}catch(e){_co=false}}return _co}
 
 const patTool=()=>tool==='area'||tool==='paint'||tool==='erase';
 const edgeTool=()=>tool==='edge';
@@ -2662,7 +2696,7 @@ function applySnap(j){
  q.add=(o.ad||[]).map(x=>toU8(x,W));q.rem=(o.rm||[]).map(x=>toU8(x,W));
  q.rows=o.ro;q.hcm=o.hc;q.unit=o.un;
  sub=o.sb?1:0;mir=o.mi?1:0;
- selP=-1;sel=null;A=null;PT=null;rSel=-1;bHot=-1;bDrag=-1;pDrag=-1;tDrag=-1}
+ selP=-1;sel=null;A=null;PT=null;rSel=-1;bHot=-1;bDrag=-1;pDrag=-1;tDrag=-1;fh=null}
 function step(from,to,word){
  uKeep();
  if(!from.length){msg='Non c’è nulla da '+word+'.';render();return}
@@ -2715,6 +2749,51 @@ function resizeN(n){
    q.ruler=q.ruler.map(v=>[clamp(v[0],-hh,hh),v[1],bw(v)])}});
  S.needles=n;A=null;selP=-1;sel=null}
 
+/* ---------- tratto a mano libera, solo con la penna ----------
+   La penna passa, l'app segue il tratto e lo riduce a una manciata di vertici
+   agganciati alla griglia, dando a ogni tratto la pancia che serve per
+   ripassare dove sei passata tu. Poi si correggono come tutti gli altri punti. */
+let fh=null;
+/* tiene solo i punti che contano davvero (Ramer-Douglas-Peucker), per indice */
+function rdpIdx(P,tol){
+ const n=P.length;if(n<3)return P.map((_,i)=>i);
+ const keep=new Array(n).fill(false);keep[0]=keep[n-1]=true;
+ const st=[[0,n-1]];
+ while(st.length){
+  const seg=st.pop(),a=seg[0],b=seg[1],A=P[a],B=P[b];
+  const dx=B[0]-A[0],dy=B[1]-A[1],L=Math.hypot(dx,dy)||1;
+  let bi=-1,bd=tol;
+  for(let i=a+1;i<b;i++){
+   const d=Math.abs((P[i][0]-A[0])*dy-(P[i][1]-A[1])*dx)/L;
+   if(d>bd){bd=d;bi=i}}
+  if(bi>=0){keep[bi]=true;st.push([a,bi],[bi,b])}}
+ const o=[];for(let i=0;i<n;i++)if(keep[i])o.push(i);
+ return o}
+function traceIn(S2){
+ const q=p(),g=GA(),kx=kxy(q,g)[0],ky=kxy(q,g)[1];
+ let tol=1,idx=rdpIdx(S2,tol);
+ while(idx.length>40&&tol<10){tol*=1.5;idx=rdpIdx(S2,tol)}
+ if(idx.length<2)return 0;
+ /* vertici agganciati alla griglia, senza doppioni */
+ const out=[],src=[];
+ idx.forEach((i,k)=>{
+  const s2=snapPt({u:S2[i][0],v:S2[i][1]});
+  const prev=out.length?out[out.length-1]:(q.pts.length?q.pts[q.pts.length-1]:null);
+  if(prev&&Math.abs(prev[0]-s2[0])<1e-9&&Math.abs(prev[1]-s2[1])<1e-9)return;
+  out.push([s2[0],s2[1],0]);src.push(i)});
+ if(out.length<2)return 0;
+ /* pancia di ogni tratto: la curva deve passare dal punto di mezzo del tratto vero */
+ for(let k=0;k+1<out.length;k++){
+  const A=[out[k][0]*kx,out[k][1]*ky], B=[out[k+1][0]*kx,out[k+1][1]*ky];
+  const dx=B[0]-A[0],dy=B[1]-A[1],L=Math.hypot(dx,dy);
+  if(L<1e-6)continue;
+  const M=S2[Math.round((src[k]+src[k+1])/2)];if(!M)continue;
+  const mx=(A[0]+B[0])/2,my=(A[1]+B[1])/2;
+  const sgn=((M[0]-mx)*(-dy)+(M[1]-my)*dx)/L;
+  out[k][2]=clamp(2*sgn/L,-1.5,1.5)}
+ q.pts=q.pts.concat(out);
+ return out.length}
+
 /* ---------- interazione sul foglio ---------- */
 const cv=$('#cv');
 function at(e){const b=cv.getBoundingClientRect();
@@ -2748,6 +2827,7 @@ let pDrag=-1,dPush=0;
 function dragPush(){if(!dPush){dPush=1;pushUndo()}}
 
 cv.addEventListener('pointerdown',e=>{
+ if(e.pointerType==='touch')return;     /* col dito si sposta e si ingrandisce, non si disegna */
  if(!GM.cw)return;const c=at(e);dn={u:c.u,v:c.v,mv:0};dPush=0;
  try{cv.setPointerCapture(e.pointerId)}catch(x){}
  const k=cellAt(c);
@@ -2767,14 +2847,20 @@ cv.addEventListener('pointerdown',e=>{
   else{const i=nearPt(q.pts,c);
    if(i>=0){dn.s0=selP;pDrag=i;selP=i;msg='';render()} /* trascina il vertice */
    else{const b=nearBow(q.pts,0,c);
-    if(b>=0){bDrag=b;bWho='p';bHot=b;msg='';render()}}}}
+    if(b>=0){bDrag=b;bWho='p';bHot=b;msg='';render()}
+    else if(e.pointerType==='pen')fh=[[c.u,c.v]];   /* la penna traccia a mano libera */
+   }}}
  else if(mode==='draw'&&tool==='meas'){sel=null;drag={c0:k.c,c1:k.c,r0:k.r,r1:k.r};render()}
  else if(mode==='draw'&&tool==='area'){drag={c0:k.c,c1:k.c,r0:k.r,r1:k.r};render()}
  else if(mode==='draw'&&tool==='edge'){pushUndo();if(edgeAt(c,null)){A=null;save();render()}}
  else if(mode==='draw'&&(tool==='paint'||tool==='erase')){pushUndo();if(paintAt(c)){save();render()}}});
 cv.addEventListener('pointermove',e=>{
+ if(e.pointerType==='touch')return;
  if(!dn||!GM.cw)return;const c=at(e);
  if(Math.abs(c.u-dn.u)>.7||Math.abs(c.v-dn.v)>.7)dn.mv=1;
+ if(fh){const l=fh[fh.length-1];
+  if(Math.abs(l[0]-c.u)>.12||Math.abs(l[1]-c.v)>.12)fh.push([c.u,c.v]);
+  render();return}
  if(tDrag>=0){const q=p(),a=prep();
   if(!q.pts[tDrag]){tDrag=-1;return}
   if(dn.mv)dragPush();
@@ -2795,8 +2881,19 @@ cv.addEventListener('pointermove',e=>{
  else if(mode==='draw'&&tool==='edge'&&dn.mv){if(edgeAt(c,dn.ev)){A=null;render()}}
  else if(mode==='draw'&&(tool==='paint'||tool==='erase')&&dn.mv){if(paintAt(c))render()}});
 cv.addEventListener('pointerup',e=>{
+ if(e.pointerType==='touch')return;
  if(!GM.cw){dn=null;return}
  const c=at(e),q=p(),g=GA(),[kx,ky]=kxy(q,g);
+ if(fh){const S2=fh;fh=null;
+  if(dn&&dn.mv&&S2.length>3){
+   pushUndo();
+   const n2=traceIn(S2);
+   msg=n2?('Tratto seguito: '+n2+(n2===1?' punto nuovo.':' punti nuovi.')+' Si spostano e si curvano come gli altri.')
+        :'Tratto troppo corto: non ho messo punti.';
+   if(!n2){UNDO.pop();uiUndo()}
+   A=null;dn=null;save();render();return}
+  if(dn&&!dn.mv)tap(c);
+  dn=null;save();render();return}
  if(tDrag>=0){tDrag=-1;
   if(dn&&dn.mv)msg='Vertice ruotato: i due tratti escono raccordati da lì.';
   dn=null;save();render();return}
@@ -3138,6 +3235,44 @@ function fitLoose(){const w=$('#cvw');if(!w||!w.clientWidth)return;
 $('#bFt').onclick=()=>setFit('all');
 $('#bFw').onclick=()=>setFit('w');
 
+/* ---------- gesti con le dita ----------
+   Sul tablet: un dito sposta il foglio, due dita ingrandiscono, la penna disegna.
+   Le dita le gestiamo noi perché il foglio è un canvas che cattura il puntatore. */
+function installTouch(pane,zoomFn){
+ if(!pane||pane.__tw)return;pane.__tw=1;
+ const P=new Map();let act='',d0=0,sx=0,sy=0,mx=0,my=0;
+ const two=()=>{const a=[...P.values()];return a.length>1?a:null};
+ const dist=a=>Math.hypot(a[0].x-a[1].x,a[0].y-a[1].y);
+ const mid=a=>[(a[0].x+a[1].x)/2,(a[0].y+a[1].y)/2];
+ pane.addEventListener('pointerdown',e=>{
+  if(e.pointerType!=='touch')return;
+  P.set(e.pointerId,{x:e.clientX,y:e.clientY});
+  const a=two();
+  if(a){act='pinch';d0=dist(a);const m=mid(a);mx=m[0];my=m[1]}
+  else{act='pan';sx=e.clientX;sy=e.clientY}});
+ pane.addEventListener('pointermove',e=>{
+  if(e.pointerType!=='touch'||!P.has(e.pointerId))return;
+  P.set(e.pointerId,{x:e.clientX,y:e.clientY});
+  if(e.cancelable)e.preventDefault();
+  const a=two();
+  if(act==='pinch'&&a){
+   const d=dist(a),m=mid(a);
+   if(d0>6&&d>6&&zoomFn)zoomFn(d/d0,m[0],m[1]);
+   pane.scrollLeft-=m[0]-mx;pane.scrollTop-=m[1]-my;
+   mx=m[0];my=m[1];d0=d}
+  else if(act==='pan'&&!a){
+   pane.scrollLeft-=e.clientX-sx;pane.scrollTop-=e.clientY-sy;
+   sx=e.clientX;sy=e.clientY}},{passive:false});
+ const end=e=>{
+  if(e.pointerType!=='touch')return;
+  P.delete(e.pointerId);
+  const a=[...P.values()];
+  if(a.length===1){act='pan';sx=a[0].x;sy=a[0].y}
+  else if(!a.length)act=''};
+ pane.addEventListener('pointerup',end);
+ pane.addEventListener('pointercancel',end);
+ pane.addEventListener('pointerleave',end)}
+
 /* ingrandisce tenendo fermo il punto sotto il puntatore */
 function zoomAt(k,cx,cy){
  const pane=$('#cvw');if(!pane||!pane.clientWidth)return;
@@ -3158,6 +3293,7 @@ $('#zm').onclick=()=>zoom(-1);$('#zp').onclick=()=>zoom(1);
 
 /* rotellina del mouse o due dita sul touchpad: ingrandisce e riduce.
    Con lo Shift premuto resta lo scorrimento, e le barre funzionano sempre. */
+installTouch($('#cvw'),(k,cx,cy)=>zoomAt(k,cx,cy));
 $('#cvw').addEventListener('wheel',e=>{
  if(mode==='gauge'||!GM.cw)return;
  let d=e.deltaY;
@@ -3236,7 +3372,7 @@ window.__MQ={
  gauge(){return GA()}, gauges(){return GS()}, gaugeId(){return L.gid},
  useGauge(id){L.gid=id;A=null;saveL();FB.later()},
  openGauge(id){ggId=id;go('gauge')},
- go(v){go(v)}, uid, now};
+ go(v){go(v)}, touch(pane,fn){installTouch(pane,fn)}, coarse(){return coarse()}, uid, now};
 
 /* ---------- password di apertura ---------- */
 async function sha(t){
@@ -3395,22 +3531,32 @@ function ggFill(){
  $('#ggName').value=g.n||'';$('#ggNote').value=g.note||'';
  const im=$('#ggImg');if(g.img)im.src=g.img;else im.removeAttribute('src');
  $('#ggPhz').hidden=!!g.img;$('#ggImgDel').hidden=!g.img;
- ['sm','sr','sw','sh','wt'].forEach(k=>$('#gg_'+k).value=g[k]||'');
+ ['sm','sr','sw','sh','wt','wl','wr'].forEach(k=>$('#gg_'+k).value=g[k]||'');
  $('#ggUse').textContent=g.id===L.gid?'È il campione attivo':'Usa nei progetti';
  $('#ggUse').disabled=g.id===L.gid;
- const s2=(g.sm/g.sw)*10||0,r2=(g.sr/g.sh)*10||0,gpc=(g.wt/(g.sm*g.sr))||0;
- $('#ggOut').innerHTML='<b>'+cm1(s2)+'</b> maglie e <b>'+cm1(r2)+'</b> righe ogni 10 cm'+
-  (gpc?'<br>Peso per maglia-riga: <b>'+(gpc*1000).toFixed(2)+'</b> mg'
-     :'<br><span class="mu">Inserisci il peso del quadrato per stimare il filato dei progetti.</span>')}
+ $('#ggOut').innerHTML=ggOutHtml(g)}
+/* la lettura del campione: densità da una parte, peso dall'altra */
+function ggOutHtml(g){
+ const s2=(g.sm/g.sw)*10||0, r2=(g.sr/g.sh)*10||0;
+ const cel=wCells(g), gpc=(cel?g.wt/cel:0)||0;
+ const prop=(g.wl|0)>0&&(g.wr|0)>0;
+ return '<b>'+cm1(s2)+'</b> maglie e <b>'+cm1(r2)+'</b> righe ogni 10 cm'+
+  (gpc
+   ?'<br>Peso per maglia-riga: <b>'+cm2(gpc*1000)+'</b> mg'+
+    '<br><span class="mu">'+(prop
+     ?nf((g.wl|0)*2)+' aghi \u00d7 '+nf(g.wr|0)+' righe = '+nf(cel)+' maglie-riga pesate'
+     :'Riferito alle '+nf(g.sm||0)+' \u00d7 '+nf(g.sr||0)+' maglie-riga contate col righello: se il campione che hai pesato era più grande, scrivi aghi e righe qui sopra.')+'</span>'
+   :'<br><span class="mu">Inserisci il peso del campione per stimare il filato dei progetti.</span>')}
 function ggSave(){const g=ggCur();if(g){saveG(g);ggFill();}}
 $('#ggBack').onclick=()=>go('home');
 $('#ggName').oninput=e=>{const g=ggCur();if(g){g.n=e.target.value;saveG(g)}};
 $('#ggNote').oninput=e=>{const g=ggCur();if(g){g.note=e.target.value;saveG(g)}};
-['sm','sr','sw','sh','wt'].forEach(k=>$('#gg_'+k).oninput=e=>{
- const g=ggCur();if(!g)return;g[k]=parseFloat(e.target.value)||0;A=null;saveG(g);
- const s2=(g.sm/g.sw)*10||0,r2=(g.sr/g.sh)*10||0,gpc=(g.wt/(g.sm*g.sr))||0;
- $('#ggOut').innerHTML='<b>'+cm1(s2)+'</b> maglie e <b>'+cm1(r2)+'</b> righe ogni 10 cm'+
-  (gpc?'<br>Peso per maglia-riga: <b>'+(gpc*1000).toFixed(2)+'</b> mg':'')});
+['sm','sr','sw','sh','wt','wl','wr'].forEach(k=>$('#gg_'+k).oninput=e=>{
+ const g=ggCur();if(!g)return;
+ const v=parseFloat(e.target.value)||0;
+ g[k]=(k==='wl'||k==='wr')?clamp(Math.round(v),0,k==='wl'?400:2000):v;
+ A=null;saveG(g);
+ $('#ggOut').innerHTML=ggOutHtml(g)});
 $('#ggUse').onclick=()=>{const g=ggCur();if(!g)return;L.gid=g.id;A=null;saveL();FB.later();ggFill()};
 dbl($('#ggDel'),()=>{const g=ggCur();if(!g)return;
  if(GS().length<2){$('#ggOut').innerHTML='<span class="ac">È l’unico campione: creane un altro prima di togliere questo.</span>';return}
