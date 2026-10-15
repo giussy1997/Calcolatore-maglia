@@ -1658,7 +1658,7 @@ const nf=n=>n.toLocaleString('it-IT');
 const cm1=n=>n.toLocaleString('it-IT',{minimumFractionDigits:1,maximumFractionDigits:1});
 const cm2=n=>n.toLocaleString('it-IT',{minimumFractionDigits:2,maximumFractionDigits:2});
 
-let L, S, mode='draw', tool='draw', sub=0, mir=1, Z=1, A=null, PT=null, side=0, GM={}, selP=-1, msg='',
+let L, S, mode='draw', tool='draw', sub=0, mir=1, mirV=0, axY=0, Z=1, A=null, PT=null, side=0, GM={}, selP=-1, msg='',
     sel=null, drag=null, dn=null, yc=1, snap='auto', rt='rib', rk='1x1', rev=6, rtop='L';
 const cname=v=>{const n=(S.yn&&S.yn[v]||'').trim();return n?YL[v]+' · '+n:YL[v]};
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,8);
@@ -1679,6 +1679,10 @@ const ov=(a,b)=>a.l<=b.r&&a.r>=b.l;
 const mrr=P=>P.map(v=>[-v[0],v[1],-(+v[2]||0)]);   /* allo specchio la pancia si ribalta */
 const mrrF=F=>F.map(v=>[-v[0],v[1]]);
 const oneSided=P=>P.length>=2&&(P.every(v=>v[0]>=-1e-9)||P.every(v=>v[0]<=1e-9));
+/* specchio sull'asse orizzontale: ribalta sopra e sotto intorno a una riga */
+const mrrY=(P,ay)=>P.map(v=>[v[0],2*ay-v[1],-(+v[2]||0)]);
+const mrrYF=(F,ay)=>F.map(v=>[v[0],2*ay-v[1]]);
+const oneSidedY=(P,ay)=>P.length>=2&&(P.every(v=>v[1]>=ay-1e-9)||P.every(v=>v[1]<=ay+1e-9));
 const U8=n=>new Uint8Array(n);
 
 /* ---------- campione e unità ---------- */
@@ -1881,10 +1885,25 @@ function inside(P,px,py){let c=0;for(let i=0,j=P.length-1;i<P.length;j=i++){cons
  if((yi>py)!==(yj>py)&&px<(xj-xi)*(py-yi)/(yj-yi)+xi)c=!c}return c}
 /* restituisce spezzate fitte già in maglie e righe: le curve sono spianate qui */
 function polysOf(sh,kx,ky){const P=sh.pts;if(!P)return[];
- if(sh.mir&&oneSided(P)){const F=flat(P,0,kx,ky);return[F.concat(mrrF(F).reverse())]}
+ const mv=!!sh.mv, ap=+sh.ay||0, ay=ap*ky;
+ const fx=F=>mrrF(F), fy=F=>mrrYF(F,ay);
+ const oneX=sh.mir&&oneSided(P), oneY=mv&&oneSidedY(P,ap);
+ /* un quarto solo: i quattro pezzi si uniscono in un anello.
+    L'ordine dipende da quale asse tocca il primo punto, se no l'anello
+    si taglia una corda in mezzo al disegno e il pieno viene sbagliato. */
+ if(oneX&&oneY){const F=flat(P,0,kx,ky),a0=F[0];
+  return Math.abs(a0[0])<=Math.abs(a0[1]-ay)
+   ?[F.concat(fy(F).reverse(),fy(fx(F)),fx(F).reverse())]
+   :[F.concat(fx(F).reverse(),fy(fx(F)),fy(F).reverse())]}
+ /* mezza figura: si chiude da sé contro l'asse */
+ if(oneX){const F=flat(P,0,kx,ky),R=F.concat(fx(F).reverse());return mv?[R,fy(R)]:[R]}
+ if(oneY){const F=flat(P,0,kx,ky),R=F.concat(fy(F).reverse());return sh.mir?[R,fx(R)]:[R]}
  if(P.length<3)return[];
- const F=flat(P,1,kx,ky);
- return sh.mir?[F,mrrF(F)]:[F]}
+ const F=flat(P,1,kx,ky),o=[F];
+ if(sh.mir)o.push(fx(F));
+ if(mv)o.push(fy(F));
+ if(sh.mir&&mv)o.push(fy(fx(F)));
+ return o}
 function stamp(grid,P,W,H,sub){
  const h=W/2;let xa=1e9,xb=-1e9,ya=1e9,yb=-1e9;
  for(let i=0;i<P.length;i++){const v=P[i];
@@ -1906,7 +1925,10 @@ function prep(){
  const fit2=k=>{if(!q[k])q[k]=[];
   while(q[k].length<H)q[k].push(U8(W));
   if(q[k].length>H)q[k].length=H;
-  for(let r=0;r<H;r++)if(q[k][r].length!==W){const z=U8(W);z.set(q[k][r].subarray(0,Math.min(W,q[k][r].length)));q[k][r]=z}};
+  for(let r=0;r<H;r++){
+   /* se è rimasta una stringa da un copia-incolla, la riporto a numeri */
+   if(!(q[k][r] instanceof Uint8Array))q[k][r]=toU8(q[k][r],W);
+   if(q[k][r].length!==W){const z=U8(W);z.set(q[k][r].subarray(0,Math.min(W,q[k][r].length)));q[k][r]=z}}};
  fit2('add');fit2('rem');
  for(let r=0;r<H;r++){const a1=q.add[r],r1=q.rem[r];
   for(let c=0;c<W;c++){if(a1[c])grid[r][c]=1;if(r1[c])grid[r][c]=0}}
@@ -2117,6 +2139,11 @@ function draw(){
   if(nx*side<-1e-9){nx=-nx;ny=-ny}
   chip(x,px,py,txt,col,inv,nx,ny)};
 
+ /* l'asse dello specchio sopra-sotto: si vede dove il disegno si ribalta */
+ if(mode==='draw'&&tool==='draw'&&mirV){const yy=Y(axY*a.ky);
+  x.strokeStyle='rgba(194,59,48,.55)';x.lineWidth=1.6;x.setLineDash([7,5]);
+  x.beginPath();x.moveTo(XC(0),yy);x.lineTo(XC(W),yy);x.stroke();x.setLineDash([])}
+
  /* righello: punti collegati in sequenza, con la misura di ogni tratto */
  if(mode==='draw'&&q.ruler.length){
   const G=q.ruler.map(v=>[v[0]*a.kx,v[1]*a.ky]),closed=!!(q.rcl&&G.length>2);
@@ -2135,7 +2162,11 @@ function draw(){
 
  if(mode==='draw'&&q.pts.length){
   const P=q.pts,G=P.map(v=>[v[0]*a.kx,v[1]*a.ky]);
-  const Mp=mrr(P),M=Mp.map(v=>[v[0]*a.kx,v[1]*a.ky]),one=mir&&oneSided(P);
+  const gof=Q=>Q.map(v=>[v[0]*a.kx,v[1]*a.ky]);
+  const MXp=mrr(P),MYp=mrrY(P,axY),MQp=mrrY(mrr(P),axY);
+  const MX=gof(MXp),MY=gof(MYp),MQ=gof(MQp);
+  const quar=mir&&mirV&&oneSided(P)&&oneSidedY(P,axY),
+        oneX=mir&&!quar&&oneSided(P), oneY=mirV&&!quar&&!oneX&&oneSidedY(P,axY);
   const closed=0; /* la forma in corso resta aperta: «Chiudi» la fissa */
   const dots=(R,c,bi)=>R.forEach(([u,v],i)=>{x.fillStyle=c;x.beginPath();x.arc(X(u),Y(v),i===bi?6:3.5,0,7);x.fill();
    if(i===bi){x.strokeStyle='#fff';x.lineWidth=2;x.stroke()}});
@@ -2143,10 +2174,23 @@ function draw(){
   const cl=(A1,B1)=>{x.strokeStyle='rgba(93,106,138,.85)';x.lineWidth=1.5;x.setLineDash([5,4]);x.beginPath();
    x.moveTo(X(A1[0]),Y(A1[1]));x.lineTo(X(B1[0]),Y(B1[1]));x.stroke();x.setLineDash([])};
   x.lineCap='round';x.lineJoin='round';
-  if(mir){x.strokeStyle='rgba(194,59,48,.45)';x.lineWidth=2;curve(M,Mp,closed);x.stroke()}
+  const FOG='rgba(194,59,48,.45)';
+  const ghost=(R,Rp)=>{x.strokeStyle=FOG;x.lineWidth=2;curve(R,Rp,closed);x.stroke()};
+  if(mir)ghost(MX,MXp);
+  if(mirV)ghost(MY,MYp);
+  if(mir&&mirV)ghost(MQ,MQp);
   x.strokeStyle=col;x.lineWidth=2;curve(G,P,closed);x.stroke();
-  if(one){cl(G[G.length-1],M[M.length-1]);cl(M[0],G[0])}
-  else{if(G.length>2)cl(G[G.length-1],G[0]);if(mir&&G.length>2)cl(M[M.length-1],M[0])}
+  const lst=R=>R[R.length-1];
+  if(quar){
+   if(Math.abs(G[0][0])<=Math.abs(G[0][1]-axY*a.ky)){
+    cl(lst(G),lst(MY));cl(MY[0],MQ[0]);cl(lst(MQ),lst(MX));cl(MX[0],G[0])}
+   else{cl(lst(G),lst(MX));cl(MX[0],MQ[0]);cl(lst(MQ),lst(MY));cl(MY[0],G[0])}}
+  else if(oneX){cl(lst(G),lst(MX));cl(MX[0],G[0]);
+   if(mirV){cl(lst(MY),lst(MQ));cl(MQ[0],MY[0])}}
+  else if(oneY){cl(lst(G),lst(MY));cl(MY[0],G[0]);
+   if(mir){cl(lst(MX),lst(MQ));cl(MQ[0],MX[0])}}
+  else if(G.length>2){cl(lst(G),G[0]);
+   if(mir)cl(lst(MX),MX[0]);if(mirV)cl(lst(MY),MY[0]);if(mir&&mirV)cl(lst(MQ),MQ[0])}
   /* misure dei tratti: parziali piene, totale invertito */
   const seg=shapeSegs();
   if(showMs&&seg.length&&seg.length<=26){
@@ -2170,7 +2214,10 @@ function draw(){
    x.beginPath();x.rect(tx-sq,ty-sq,sq*2,sq*2);
    x.fillStyle=tDrag>=0?col:'#fff';x.fill();
    x.strokeStyle=col;x.lineWidth=2.2;x.stroke()}
-  if(mir)dots(M,'rgba(194,59,48,.45)',-1);dots(G,col,selP)}}
+  if(mir)dots(MX,FOG,-1);
+  if(mirV)dots(MY,FOG,-1);
+  if(mir&&mirV)dots(MQ,FOG,-1);
+  dots(G,col,selP)}}
 
 function nrm(d){return{c0:Math.min(d.c0,d.c1),c1:Math.max(d.c0,d.c1),r0:Math.min(d.r0,d.r1),r1:Math.max(d.r0,d.r1)}}
 
@@ -2452,7 +2499,8 @@ function shapeList(){
    return '<div class="sq"><span class="nmm">forma '+(z.i+1)+'</span>'+
     '<span class="sv">'+n+(n===1?' punto':' punti')+'</span>'+
     '<span class="mu">'+(sh.sub?'sottratta dal disegno':'aggiunta al disegno')+
-     (sh.mir?' · specchiata':'')+(curve?' · con curve':'')+'</span>'+
+     (sh.mir?' · specchiata ai lati':'')+(sh.mv?' · specchiata sopra e sotto':'')+
+     (curve?' · con curve':'')+'</span>'+
     '<span class="tr" style="gap:5px;margin-top:4px">'+
      '<button data-ro="'+z.i+'">Riapri</button>'+
      '<button data-rd="'+z.i+'">Elimina</button></span></div>'}).join('')+
@@ -2463,7 +2511,7 @@ function shapeList(){
   pushUndo();
   const sh=q.shapes.splice(+b.dataset.ro,1)[0];
   q.pts=sh.pts.map(v=>[v[0],v[1],+(v[2]||0)]);
-  sub=sh.sub?1:0;mir=sh.mir?1:0;tool='draw';selP=-1;A=null;
+  sub=sh.sub?1:0;mir=sh.mir?1:0;mirV=sh.mv?1:0;axY=+sh.ay||0;tool='draw';selP=-1;A=null;
   msg='Forma riaperta con tutti i suoi punti: spostali, curvali, poi «Chiudi la forma».';
   save();render()});
  el.querySelectorAll('[data-rd]').forEach(b=>b.onclick=()=>{
@@ -2574,7 +2622,10 @@ function hint(){
   else if(tool==='div')t='Tocca una riga della griglia per mettere o togliere una linea di divisione.';
   else if(selP>=0&&P[selP])t='Punto scelto: '+(q.unit==='cm'?cm1(P[selP][0])+' cm · '+cm1(P[selP][1])+' cm':lv(P[selP][0])+' · riga '+P[selP][1])+
    '. Trascinalo per spostarlo, oppure trascina il quadratino in fondo alla linea tratteggiata per ruotare su questo vertice: i due tratti si piegano raccordati. Toccalo di nuovo per lasciarlo.';
-  else if(P.length)t=P.length+(P.length===1?' punto. ':' punti. ')+(mir&&oneSided(P)?'Un solo lato con lo specchio: «Chiudi» unisce da sola i due lati. ':'')+
+  else if(P.length)t=P.length+(P.length===1?' punto. ':' punti. ')+
+   (mir&&mirV&&oneSided(P)&&oneSidedY(P,axY)?'Un solo quarto con i due specchi: «Chiudi» mette assieme tutti e quattro. '
+    :mir&&oneSided(P)?'Un solo lato con lo specchio: «Chiudi» unisce da sola i due lati. '
+    :mirV&&oneSidedY(P,axY)?'Una sola metà con lo specchio sopra-sotto: «Chiudi» unisce da sola sopra e sotto. ':'')+
    (selP>=0
     ?'Punto scelto: trascina il quadratino in fondo alla linea tratteggiata per ruotare su questo vertice, e i due tratti si piegano raccordati. '
     :'Tocca un punto per sceglierlo: compare la maniglia per ruotare su quel vertice. ')+
@@ -2599,17 +2650,44 @@ function ui(){
  const relab=(id,ic,lab)=>{const b=$(id);if(!b)return;b.innerHTML=svg(ic)+'<span>'+lab+'</span>';b.title=lab};
  relab('#bSub',sub?'sub':'add',sub?'Sottrai dal disegno':'Aggiungi al disegno');
  $('#bSub').classList.toggle('hot',!!sub);
- relab('#bMi','mirror',mir?'Specchio acceso':'Specchio spento');
+ relab('#bMi','mirror',mir?'Specchio ai lati acceso':'Specchio ai lati spento');
  $('#bMi').classList.toggle('on',!!mir);
+ relab('#bMv2','mirrorv',mirV?'Specchio sopra e sotto acceso':'Specchio sopra e sotto spento');
+ $('#bMv2').classList.toggle('on',!!mirV);
  $('#rk').hidden=rt!=='rib';$('#tgCab').hidden=rt!=='cable';
  $('#tgFix').hidden=p().unit!=='cm';
  $('#ht').hidden=mode==='gauge';
  $('#sb').hidden=mode!=='draw';$('#dr').hidden=mode!=='draw';
  const isDraw=tool==='draw';
- ['#hMod','#bSub','#bMi','#sbSnap','#hFor','#bCl','#bUn','#bFl'].forEach(k=>{const e=$(k);if(e)e.hidden=!isDraw||mode!=='draw'});
+ ['#hMod','#bSub','#bMi','#bMv2','#sbSnap','#hFor','#bCl','#bUn','#bFl'].forEach(k=>{const e=$(k);if(e)e.hidden=!isDraw||mode!=='draw'});
+ /* l'asse dello specchio sopra-sotto si vede solo quando serve */
+ {const e=$('#sbAx'),cmu=p().unit==='cm',i=$('#iAxY');
+  if(e)e.hidden=!isDraw||mode!=='draw'||!mirV;
+  if($('#labAx'))$('#labAx').firstChild.nodeValue=cmu?'Asse all’altezza (cm)':'Asse a riga';
+  if(i&&document.activeElement!==i)i.value=cmu?+(+axY).toFixed(1):Math.round(axY)}
  ['#hRul','#rlUn','#rlCl','#rlFl'].forEach(k=>{const e=$(k);if(e)e.hidden=tool!=='rule'||mode!=='draw'});
  ['#hEdg','#bEdZ'].forEach(k=>{const e=$(k);if(e)e.hidden=tool!=='edge'||mode!=='draw'});
  {const bm=$('#bMs');if(bm)bm.classList.toggle('on',!!showMs)}
+ /* il gruppo delle righe e degli aghi parla nelle unità del pezzo */
+ {const q2=p(),cmu=q2.unit==='cm',ax=$('#iRowAx'),nd=ax&&ax.value==='n';
+  const la=$('#labRowAt'),ln=$('#labRowN'),rh=$('#rowHint'),e=$('#iRowAt');
+  const lb=$('#labRowBoth'),lc=$('#labRowCp');
+  if(la)la.firstChild.nodeValue=nd?(cmu?'Alla distanza dal centro (cm)':'All’ago')
+   :(cmu?'All’altezza (cm)':'Alla riga');
+  if(ln)ln.firstChild.nodeValue=cmu?'Quanti cm':(nd?'Quanti aghi':'Quante righe');
+  if(lb)lb.hidden=!nd;
+  if(lc)lc.textContent=nd?'copia l’ago di partenza per tutta la sua altezza'
+   :'copia la riga di partenza su tutta la larghezza';
+  if(e&&document.activeElement!==e&&!e.value){
+   /* parto dal punto scelto col righello, se no da dove sei col contagiri */
+   const sp=(rSel>=0&&q2.ruler&&q2.ruler[rSel])?q2.ruler[rSel]
+    :(selP>=0&&q2.pts&&q2.pts[selP])?q2.pts[selP]:null;
+   const rp=sp?sp[nd?0:1]:null;
+   e.value=rp!=null?(cmu?+(+rp).toFixed(1):Math.round(rp)):(nd?'0':(cmu?'':String(DONE())))}
+  if(rh)rh.textContent=nd
+   ?'Gli aghi nuovi si infilano qui e il disegno si scosta: con «metà per lato» resta centrato e in tutto si allarga di quello che hai scritto. Oltre il bordo del letto d’aghi non si va.'
+   :(cmu?'Quello che sta più in alto di questa quota si sposta; sotto resta fermo.'
+     :'Quello che sta sopra questa riga si sposta; sotto resta fermo. Il punto scelto col righello lo scrivo qui da solo.')}
  ['#hAre','#sbArea'].forEach(k=>{const e=$(k);if(e)e.hidden=tool!=='area'});
  ['#hCol','#sbCol'].forEach(k=>{const e=$(k);if(e)e.hidden=!(tool==='paint'||tool==='erase')});
  $('#labRk').hidden=rt!=='rib';
@@ -2682,7 +2760,7 @@ function fill(){
 let UNDO=[],REDO=[],uKey='';
 function shot(){const q=p();
  return JSON.stringify({s:q.shapes,d:q.div,r:q.regions,pa:q.paint,pt:q.pts,
-  ad:q.add,rm:q.rem,ro:q.rows,hc:q.hcm,un:q.unit,sb:sub,mi:mir},REP)}
+  ad:q.add,rm:q.rem,ro:q.rows,hc:q.hcm,un:q.unit,sb:sub,mi:mir,mv:mirV,ay:axY},REP)}
 /* la pila vale per un solo pezzo: cambiando pezzo o progetto riparte da zero */
 function uKeep(){const k=S.id+'|'+S.cur;if(k!==uKey){UNDO=[];REDO=[];uKey=k}}
 function pushUndo(){
@@ -2695,7 +2773,7 @@ function applySnap(j){
  q.div=o.d||[];q.regions=o.r||[];q.paint=(o.pa||[]).map(x=>toU8(x,W));q.pts=o.pt||[];
  q.add=(o.ad||[]).map(x=>toU8(x,W));q.rem=(o.rm||[]).map(x=>toU8(x,W));
  q.rows=o.ro;q.hcm=o.hc;q.unit=o.un;
- sub=o.sb?1:0;mir=o.mi?1:0;
+ sub=o.sb?1:0;mir=o.mi?1:0;mirV=o.mv?1:0;axY=+o.ay||0;
  selP=-1;sel=null;A=null;PT=null;rSel=-1;bHot=-1;bDrag=-1;pDrag=-1;tDrag=-1;fh=null}
 function step(from,to,word){
  uKeep();
@@ -2711,9 +2789,10 @@ function uiUndo(){
  [a,c].forEach(e=>{if(e)e.disabled=!UNDO.length});
  [b,d].forEach(e=>{if(e)e.disabled=!REDO.length})}
 function commit(){const q=p(),P=q.pts;
- if(!(mir&&oneSided(P)?P.length>=2:P.length>=3)){msg='Servono almeno 3 punti, o 2 se disegni un solo lato con lo specchio acceso.';render();return}
+ const mezza=(mir&&oneSided(P))||(mirV&&oneSidedY(P,axY));
+ if(!(mezza?P.length>=2:P.length>=3)){msg='Servono almeno 3 punti, o 2 se disegni un solo lato (o un solo quarto) con lo specchio acceso.';render();return}
  pushUndo();
- q.shapes.push({pts:P.map(v=>v.slice()),sub:sub?1:0,mir:mir?1:0});
+ q.shapes.push({pts:P.map(v=>v.slice()),sub:sub?1:0,mir:mir?1:0,mv:mirV?1:0,ay:mirV?axY:0});
  q.pts=[];selP=-1;A=null;
  msg='Forma chiusa. «Annulla» la riapre con tutti i suoi punti.';save();render()}
 function dbl(b,f){let t,o=b.textContent;b.onclick=()=>{
@@ -2727,7 +2806,8 @@ function fixPiece(){
  n.unit='st';n.rows=rowsOf(q,g);n.name=(q.name||'Pezzo')+' · '+(GA().c.n||'campione');
  /* la pancia è in proporzione al tratto: passando in maglie resta com'è */
  n.shapes=(n.shapes||[]).map(sh=>sh.mask?{mask:sh.mask.map(s=>Uint8Array.from(s,Number))}
-  :{pts:sh.pts.map(v=>[Math.round(v[0]*kx),Math.round(v[1]*ky),bw(v)]),sub:sh.sub,mir:sh.mir});
+  :{pts:sh.pts.map(v=>[Math.round(v[0]*kx),Math.round(v[1]*ky),bw(v)]),sub:sh.sub,mir:sh.mir,
+    mv:sh.mv,ay:Math.round((+sh.ay||0)*ky)});
  n.div=(n.div||[]).map(v=>Math.round(v*ky));
  n.regions=(n.regions||[]).map(r=>({...r,x0:Math.round(r.x0*kx),x1:Math.round(r.x1*kx),y0:Math.round(r.y0*ky),y1:Math.round(r.y1*ky)}));
  n.paint=(n.paint||[]).map(s=>Uint8Array.from(s,Number));
@@ -2737,6 +2817,15 @@ function fixPiece(){
  S.ps.push(n);S.cur=S.ps.length-1;A=null;selP=-1;side=0;sel=null;
  msg='Pezzo fissato in maglie e righe con il campione «'+(GA().c.n||'')+'». L’originale in centimetri è rimasto.';
  save();fill();render()}
+
+/* rimette un pezzo copiato nella forma giusta: righe come Uint8Array, non stringhe */
+function fixPc(n,W){
+ if(!n)return n;
+ const u=a2=>(a2||[]).map(x=>toU8(x,W));
+ (n.shapes||[]).forEach(sh=>{if(sh.mask)sh.mask=u(sh.mask)});
+ n.paint=u(n.paint);n.add=u(n.add);n.rem=u(n.rem);
+ n.pts=fxpt(n.pts);n.ruler=fxpt(n.ruler);
+ return n}
 
 function resizeN(n){
  n=clamp(Math.round(n/2)*2,20,400);const d=(n-S.needles)/2,hh=n/2;
@@ -2748,6 +2837,152 @@ function resizeN(n){
   if(q.unit!=='cm'){q.pts=q.pts.map(v=>[clamp(v[0],-hh,hh),v[1],bw(v)]);
    q.ruler=q.ruler.map(v=>[clamp(v[0],-hh,hh),v[1],bw(v)])}});
  S.needles=n;A=null;selP=-1;sel=null}
+
+/* ---------- inserire o togliere righe in mezzo al disegno ----------
+   Tutto quello che sta sopra si sposta: punti, forme, divisioni, aree,
+   pennello, ritocchi e contagiri. Sotto non si muove niente. */
+/* ricampiona una griglia tenendo ferma la mediana degli aghi */
+function reGrid(a2,fx,fy,W){
+ if(!a2||!a2.length)return a2;
+ const H=a2.length, Hn=clamp(Math.round(H*fy),1,1400), h=W/2, out=[];
+ for(let r=0;r<Hn;r++){
+  const sr=clamp(Math.floor(r/fy),0,H-1), src=a2[sr], z=U8(W);
+  for(let c=0;c<W;c++){
+   const sc=Math.round((c-h)/fx+h);
+   if(sc>=0&&sc<W&&src&&src[sc])z[c]=src[sc]}
+  out.push(z)}
+ return out}
+/* tiene fermi i centimetri e rifà maglie e righe col campione nuovo */
+function reGauge(oldG){
+ const q=p(),ng2=GA();
+ if(q.unit==='cm')return 0;
+ const so=(oldG.sm/oldG.sw)*10, ro=(oldG.sr/oldG.sh)*10;
+ if(!(so>0&&ro>0))return 0;
+ const fx=ng2.s/so, fy=ng2.r/ro, W=S.needles, h=W/2;
+ if(Math.abs(fx-1)<1e-9&&Math.abs(fy-1)<1e-9)return 0;
+ const mx=v=>clamp(Math.round(v*fx),-h,h), my=v=>Math.max(0,Math.round(v*fy));
+ q.pts=(q.pts||[]).map(v=>[mx(v[0]),my(v[1]),bw(v)]);
+ q.ruler=(q.ruler||[]).map(v=>[mx(v[0]),my(v[1]),bw(v)]);
+ (q.shapes||[]).forEach(sh=>{
+  if(sh.pts)sh.pts=sh.pts.map(v=>[mx(v[0]),my(v[1]),bw(v)]);
+  if(sh.mv)sh.ay=my(+sh.ay||0);
+  if(sh.mask)sh.mask=reGrid(sh.mask,fx,fy,W)});
+ if(axY)axY=my(axY);
+ q.div=(q.div||[]).map(my);
+ (q.regions||[]).forEach(rg=>{rg.x0=rg.x0*fx;rg.x1=rg.x1*fx;rg.y0=rg.y0*fy;rg.y1=rg.y1*fy});
+ q.paint=reGrid(q.paint,fx,fy,W);q.add=reGrid(q.add,fx,fy,W);q.rem=reGrid(q.rem,fx,fy,W);
+ q.rows=clamp(Math.round((q.rows||120)*fy),10,1400);
+ const d=DONE();if(d)setDONE(clamp(Math.round(d*fy),0,q.rows));
+ q.gid=L.gid;A=null;return 1}
+
+function rowsAt(at,n,via,copy){
+ const q=p(),g=GA(),ky=kxy(q,g)[1],W=S.needles;
+ if(!(n>0))return 0;
+ /* nelle unità del pezzo: righe se disegni in maglie, centimetri se disegni in cm */
+ const lim=q.unit==='cm'?(q.hcm||40):(q.rows||120);
+ at=clamp(at,0,lim);
+ if(via)n=Math.min(n,lim-at);
+ if(!(n>0))return 0;
+ const mv=v=>via?(v<=at?v:(v>=at+n?v-n:at)):(v>=at?v+n:v);
+ q.pts=(q.pts||[]).map(v=>[v[0],mv(v[1]),bw(v)]);
+ q.ruler=(q.ruler||[]).map(v=>[v[0],mv(v[1]),bw(v)]);
+ (q.shapes||[]).forEach(sh=>{if(sh.pts)sh.pts=sh.pts.map(v=>[v[0],mv(v[1]),bw(v)]);
+  if(sh.mv)sh.ay=mv(+sh.ay||0)});
+ if(mirV&&axY)axY=mv(axY);
+ const lim2=lim+(via?-n:n);
+ q.div=(q.div||[]).map(mv).filter(v=>v>0&&v<lim2);
+ (q.regions||[]).forEach(rg=>{
+  const y0=mv(rg.y0), y1=via?mv(rg.y1):(rg.y1>at?rg.y1+n:rg.y1);
+  rg.y0=Math.min(y0,y1);rg.y1=Math.max(y0,y1)});
+ /* le griglie sono in righe vere: converto la posizione e il numero */
+ const gAt=Math.round(at*ky), gN=Math.max(1,Math.round(n*ky));
+ const band=a2=>{if(!a2)return a2;
+  const b=a2.map(r0=>r0 instanceof Uint8Array?r0:toU8(r0,W));
+  if(via)b.splice(gAt,gN);
+  else{
+   /* la banda nuova copia la riga di partenza su tutta la larghezza, se vuoi */
+   const src=copy?b[Math.min(gAt,b.length-1)]:null, add=[];
+   for(let i=0;i<gN;i++)add.push(src?Uint8Array.from(src):U8(W));
+   b.splice(gAt,0,...add)}
+  return b};
+ q.paint=band(q.paint);q.add=band(q.add);q.rem=band(q.rem);
+ (q.shapes||[]).forEach(sh=>{if(sh.mask)sh.mask=band(sh.mask)});
+ if(q.unit==='cm')q.hcm=clamp(+(((q.hcm||40)+(via?-n:n)).toFixed(2)),1,400);
+ else q.rows=clamp((q.rows||120)+(via?-gN:gN),10,1400);
+ /* il contagiri segue, così non perdi il punto in cui eri */
+ const d=DONE();if(d>gAt)setDONE(clamp(via?d-gN:d+gN,0,1400));
+ A=null;return via?-n:n}
+
+/* fin dove arriva il disegno, in maglie: serve a sapere quanto spazio resta ai lati */
+function colSpan(q,g){
+ const kx=kxy(q,g)[0],W=S.needles,h=W/2;
+ let a=1e9,b=-1e9;
+ const u1=u=>{if(u<a)a=u;if(u>b)b=u};
+ const pu=v=>u1(v[0]*kx);
+ (q.pts||[]).forEach(pu);(q.ruler||[]).forEach(pu);
+ (q.shapes||[]).forEach(sh=>{(sh.pts||[]).forEach(v=>{pu(v);if(sh.mir)u1(-v[0]*kx)})});
+ (q.regions||[]).forEach(rg=>{u1(rg.x0*kx);u1(rg.x1*kx)});
+ const gr=a2=>(a2||[]).forEach(r0=>{const r=r0 instanceof Uint8Array?r0:toU8(r0,W);
+  for(let c=0;c<r.length;c++)if(r[c]){u1(c-h);u1(c-h+1)}});
+ gr(q.paint);gr(q.add);gr(q.rem);(q.shapes||[]).forEach(sh=>{if(sh.mask)gr(sh.mask)});
+ return b<a?[0,0]:[a,b]}
+
+/* inserisce o toglie aghi alla colonna scelta.
+   Con «metà per lato» il disegno si allarga restando centrato; l'ago nuovo copia
+   quello di partenza per tutta la sua altezza, così il disegno si stira e non si buca. */
+function needlesAt(at,n,via,both,copy){
+ const q=p(),g=GA(),kx=kxy(q,g)[0],W=S.needles,h=W/2;
+ if(!(n>0))return 0;
+ const atS=Math.round((both?Math.abs(at):at)*kx);           /* la colonna, in maglie */
+ let R=both?Math.ceil(n*kx/2):Math.round(n*kx), Lf=both?Math.floor(n*kx/2):0;
+ R=Math.max(0,R);Lf=Math.max(0,Lf);
+ if(!via){
+  /* oltre il bordo del letto d'aghi non si può andare: il disegno andrebbe perso */
+  const sp=colSpan(q,g);
+  R=Math.min(R,Math.max(0,Math.floor(h-sp[1])));
+  Lf=Math.min(Lf,Math.max(0,Math.floor(sp[0]+h)))}
+ else{R=Math.min(R,Math.max(0,Math.floor(h-atS)));Lf=Math.min(Lf,Math.max(0,Math.floor(h-atS)))}
+ if(!(R+Lf>0))return 0;
+ const atP=atS/kx, Rp=R/kx, Lp=Lf/kx;
+ /* dove va a finire un punto, nelle unità del pezzo */
+ const mvx=u=>{
+  if(!via){                       /* inserisco: i due lati si scostano */
+   if(!both)return u>=atP-1e-9?u+Rp:u;
+   if(atP>1e-9){if(u>=atP-1e-9)return u+Rp;if(u<=-atP+1e-9)return u-Lp;return u}
+   if(u>1e-9)return u+Rp;
+   if(u<-1e-9)return u-Lp;
+   return u}
+  /* togliendo, la banda si chiude */
+  if(u>=atP+Rp)return u-Rp;
+  if(u>atP)return atP;
+  if(both){if(u<=-atP-Lp)return u+Lp;if(u<-atP)return -atP}
+  return u};
+ q.pts=(q.pts||[]).map(v=>[mvx(v[0]),v[1],bw(v)]);
+ q.ruler=(q.ruler||[]).map(v=>[mvx(v[0]),v[1],bw(v)]);
+ (q.shapes||[]).forEach(sh=>{if(sh.pts)sh.pts=sh.pts.map(v=>[mvx(v[0]),v[1],bw(v)])});
+ (q.regions||[]).forEach(rg=>{const x0=mvx(rg.x0),x1=mvx(rg.x1);
+  rg.x0=Math.min(x0,x1);rg.x1=Math.max(x0,x1)});
+ /* le griglie sono in colonne vere: per ogni colonna nuova dico da dove prende */
+ const map=new Int16Array(W);
+ for(let c=0;c<W;c++){const u=c-h;let s=c;
+  if(!via){
+   if(u>=atS+R)s=c-R;
+   else if(u>=atS)s=copy?atS+h:-1;
+   else if(both&&u<-atS-Lf)s=c+Lf;
+   else if(both&&u<-atS)s=copy?h-atS-1:-1}
+  else{
+   if(u>=atS)s=c+R;
+   else if(both&&u<-atS)s=c-Lf}
+  map[c]=(s>=0&&s<W)?s:-1}
+ const band=a2=>!a2?a2:a2.map(r0=>{
+  const src=r0 instanceof Uint8Array?r0:toU8(r0,W), z=U8(W);
+  for(let c=0;c<W;c++){const s=map[c];if(s>=0&&src[s])z[c]=src[s]}
+  return z});
+ q.paint=band(q.paint);q.add=band(q.add);q.rem=band(q.rem);
+ (q.shapes||[]).forEach(sh=>{if(sh.mask)sh.mask=band(sh.mask)});
+ A=null;
+ const tot=(R+Lf)/kx;
+ return via?-tot:tot}
 
 /* ---------- tratto a mano libera, solo con la penna ----------
    La penna passa, l'app segue il tratto e lo riduce a una manciata di vertici
@@ -2965,6 +3200,9 @@ const IC={
  add:'<rect x="2" y="2" width="12" height="12" rx="2.5"/><path d="M8 5v6M5 8h6"/>',
  sub:'<rect x="2" y="2" width="12" height="12" rx="2.5"/><path d="M5 8h6"/>',
  mirror:'<path d="M8 1v14" stroke-dasharray="2 2"/><path d="M6 4 2 8l4 4Z"/><path d="M10 4l4 4-4 4Z"/>',
+ mirrorv:'<path d="M1 8h14" stroke-dasharray="2 2"/><path d="M4 6 8 2l4 4Z"/><path d="M4 10l4 4 4-4Z"/>',
+ rows:'<path d="M1 3h14M1 8h14M1 13h14" opacity=".45"/><path d="M8 5.5v5M5.5 8h5"/>',
+ cols:'<path d="M3 1v14M8 1v14M13 1v14" opacity=".45"/><path d="M8 5.5v5M5.5 8h5"/>',
  check:'<path d="M2 8.5 6 12.5 14 3"/>',
  nopoint:'<circle cx="5.5" cy="8" r="2.5"/><path d="M10 8h5"/>',
  undo:'<path d="M4 8a5 5 0 1 1 1.7 3.8"/><path d="M2.5 4.5v4h4"/>',
@@ -2993,7 +3231,10 @@ function buildChrome(){
   sbb('rule','rule','Righello')+sbb('edge','edge','Ritocca i bordi')+
   sbb('area','area','Area motivo')+sbb('paint','paint','Pennello')+sbb('erase','erase','Gomma')+
   '<div class="sbsep"></div>'+
-  '<div class="sbh" id="hMod">Modo</div>'+sbb('#bSub','add','Aggiungi')+sbb('#bMi','mirror','Specchio')+
+  '<div class="sbh" id="hMod">Modo</div>'+sbb('#bSub','add','Aggiungi')+
+  sbb('#bMi','mirror','Specchio ai lati')+sbb('#bMv2','mirrorv','Specchio sopra e sotto')+
+  '<div class="sbg" id="sbAx"><label id="labAx">Asse a riga<input id="iAxY" type="number" step="any"></label>'+
+   '<p class="st" style="font-size:11.5px;margin:2px 0">Il disegno si ribalta intorno a questa riga: disegni metà e l’altra metà viene da sé.</p></div>'+
   '<div class="sbg" id="sbSnap"><label>Aggancio<select id="sn"></select></label></div>'+
   '<div class="sbh" id="hFor">Forma</div>'+sbb('#bCl','check','Chiudi la forma')+sbb('#bUn','nopoint','Togli punto')+
   sbb('#bFl','straight','Raddrizza i tratti')+
@@ -3008,6 +3249,18 @@ function buildChrome(){
   '<div class="sbh" id="hCol">Filato</div>'+
   '<div class="sbg" id="sbCol"><div class="sbp" id="yp"></div>'+
    '<label id="tgYn">Nome del filo<input id="yname" placeholder="es. rosso mattone"></label></div>'+
+  '<div class="sbh" id="hRow">Righe e aghi in mezzo</div>'+
+  '<div class="sbg" id="sbRow">'+
+   '<label>Cosa aggiungo<select id="iRowAx">'+
+    '<option value="r">righe, in altezza</option><option value="n">aghi, in larghezza</option></select></label>'+
+   '<label id="labRowAt">Alla riga<input id="iRowAt" type="number" step="any"></label>'+
+   '<label id="labRowN">Quante righe<input id="iRowN" type="number" min="1" max="400" step="any" value="10"></label>'+
+   '<label id="labRowBoth" style="flex-direction:row;align-items:center;gap:6px">'+
+    '<input type="checkbox" id="iRowBoth" style="width:auto" checked> metà per lato, a destra e a sinistra</label>'+
+   '<label style="flex-direction:row;align-items:center;gap:6px">'+
+    '<input type="checkbox" id="iRowCp" style="width:auto" checked> <span id="labRowCp">copia la riga di partenza</span></label>'+
+   '<div class="tr" style="gap:5px"><button id="bRowIns">Inserisci</button><button id="bRowDel">Togli</button></div>'+
+   '<p class="st" id="rowHint" style="font-size:11.5px;margin:2px 0"></p></div>'+
   '<div class="sbsep"></div><div class="sbh">Modifiche</div>'+
   sbb('#bUf','undo','Annulla')+sbb('#bRd','redo','Ripeti')+sbb('#bEm','trash','Svuota il pezzo')+
   '<div class="sbsep"></div><div class="sbh">Vista</div>'+
@@ -3020,6 +3273,11 @@ function buildChrome(){
   '<div class="tr"><select id="ps" style="flex:1"></select></div>'+
   '<div class="tr" style="margin-top:6px"><input id="pn" placeholder="Nome del pezzo" style="flex:1"></div>'+
   '<div class="tr" style="margin-top:6px"><button id="pa">+ Nuovo</button><button id="pc">Duplica</button><button id="pd">Elimina</button></div>'+
+  '<div class="sbsep"></div>'+
+  '<div class="sbh" style="padding:2px 2px 6px">Cambio campione</div>'+
+  '<label class="mu" style="display:block">Il disegno è fatto con<select id="pgOld" style="width:100%"></select></label>'+
+  '<button id="pgGo" style="margin-top:6px;width:100%">Tieni i centimetri, rifai maglie e righe</button>'+
+  '<p class="st" id="pgHint" style="margin:6px 0 0"></p>'+
   '<div class="sbsep"></div>'+
   '<div class="tr"><label class="mu" style="flex:1">Unità<select id="un" style="width:100%"><option value="st">maglie e righe</option><option value="cm">centimetri</option></select></label>'+
   '<label class="mu" style="flex:1">Altezza<span class="tr"><input id="nh" type="number" step="any" style="flex:1"><span class="mu" id="uu"></span></span></label></div>';
@@ -3168,7 +3426,7 @@ $('#drTog').onclick=()=>{const e=$('#dr');e.classList.toggle('min');
 try{if(localStorage.getItem('mq-dr')==='0')$('#dr').classList.remove('min')}catch(x){}
 $('#cvw').addEventListener('scroll',()=>{if(!rafR){rafR=requestAnimationFrame(()=>{rafR=0;rulers()})}},{passive:true});
 let rafR=0;
-$('#pcBox').onclick=()=>popTo('#pcPop');
+$('#pcBox').onclick=()=>{popTo('#pcPop');if(!$('#pcPop').hidden)pgFill()};
 $('#gBox').onclick=()=>popTo('#gPop');
 $('#mBox').onclick=()=>popTo('#mPop');
 document.querySelectorAll('#vProj nav button').forEach(b=>b.onclick=()=>{
@@ -3181,6 +3439,18 @@ $('#sbBody').querySelectorAll('[data-t]').forEach(b=>b.onclick=()=>{tool=b.datas
  render()});
 $('#bSub').onclick=()=>{sub=sub?0:1;msg='';render()};
 $('#bMi').onclick=()=>{mir=mir?0:1;msg='';render()};
+/* specchio sopra e sotto: l'asse parte da dove sei arrivata col disegno */
+$('#bMv2').onclick=()=>{const q=p(),P=q.pts;
+ mirV=mirV?0:1;
+ if(mirV&&!axY)axY=P.length?Math.max(...P.map(v=>v[1]))
+  :(q.unit==='cm'?+(((q.hcm||40)/2).toFixed(1)):Math.round((q.rows||120)/2));
+ msg=mirV?'Specchio sopra e sotto acceso: disegna la metà di sotto, l’altra viene da sé. L’asse è la riga tratteggiata, lo cambi qui accanto.'
+  :'Specchio sopra e sotto spento.';
+ render()};
+$('#iAxY').oninput=()=>{const q=p(),v=+$('#iAxY').value;
+ if(!isFinite(v))return;
+ axY=q.unit==='cm'?clamp(v,0,q.hcm||40):clamp(Math.round(v),0,q.rows||120);
+ render()};
 $('#bCl').onclick=commit;
 $('#bUn').onclick=()=>{const q=p();if(!q.pts.length)return;msg='';pushUndo();
  if(selP>=0&&q.pts[selP]){q.pts.splice(selP,1);selP=-1}else q.pts.pop();save();render()};
@@ -3206,6 +3476,53 @@ $('#bMs').onclick=()=>{showMs=showMs?0:1;
  try{localStorage.setItem('mq-ms',showMs?'1':'0')}catch(x){}
  msg=showMs?'Misure sulle linee accese.':'Misure sulle linee spente.';render()};
 try{if(localStorage.getItem('mq-ms')==='0')showMs=0}catch(x){}
+/* inserisce o toglie righe alla quota scelta, oppure aghi alla colonna scelta */
+const rowGo=via=>{const q=p(),cmu=q.unit==='cm';
+ const nd=$('#iRowAx')&&$('#iRowAx').value==='n';
+ const at=+$('#iRowAt').value||0, n2=+$('#iRowN').value||0;
+ const both=!$('#iRowBoth')||$('#iRowBoth').checked;
+ const copy=!$('#iRowCp')||$('#iRowCp').checked;
+ if(!(n2>0)){msg=nd?'Scrivi quanti aghi.':'Scrivi quante righe.';render();return}
+ pushUndo();
+ const d=nd?needlesAt(at,n2,via,both,copy):rowsAt(at,n2,via,copy);
+ if(!d){UNDO.pop();uiUndo();
+  msg=nd?(via?'Lì non c’è niente da togliere.'
+   :'Non c’è più spazio sul letto d’aghi: il disegno arriva già al bordo. Riduci il numero di aghi o allarga gli aghi del progetto.')
+   :'Non c’è spazio per toglierne così tante.';
+  render();return}
+ const k=Math.abs(d), kk=cmu?cm1(k):nf(k);
+ const u=cmu?' cm':(nd?(k===1?' ago':' aghi'):(k===1?' riga':' righe'));
+ const dove=nd?(cmu?cm1(Math.abs(at))+' cm dal centro':(both?'ago '+lv(Math.abs(at)):'ago '+lv(at)))
+  :(cmu?cm1(at)+' cm':'riga '+at);
+ msg=(via?(nd?'Tolti ':'Tolte '):(nd?'Inseriti ':'Inserite '))+kk+u+(via?' da ':' a ')+dove+
+  (nd?(both?': metà per lato, il disegno è rimasto centrato.':': quello che stava a destra si è scostato.')
+    :': quello che stava sopra si è spostato.');
+ save();fill();render()};
+/* cambio campione tenendo ferme le misure in centimetri */
+function pgFill(){
+ const sel2=$('#pgOld');if(!sel2)return;
+ const q=p(),cmu=q.unit==='cm';
+ sel2.innerHTML=GS().map(z=>'<option value="'+z.id+'">'+esc(z.n||'Senza nome')+'</option>').join('');
+ const want=q.gid&&GS().some(z=>z.id===q.gid)?q.gid:L.gid;
+ sel2.value=want;
+ sel2.disabled=cmu;$('#pgGo').disabled=cmu;
+ $('#pgHint').textContent=cmu
+  ?'Questo pezzo è già disegnato in centimetri: cambiando campione le misure restano e maglie e righe si rifanno da sole.'
+  :'Dimmi con che campione avevi disegnato: tengo ferme le misure in centimetri e ricalcolo aghi e righe col campione attivo.'}
+$('#pgGo').onclick=()=>{
+ const og=GS().find(z=>z.id===$('#pgOld').value);
+ if(!og){msg='Scegli il campione con cui avevi disegnato.';render();return}
+ if(og.id===L.gid){msg='È già il campione attivo: non c’è niente da riadattare.';render();return}
+ pushUndo();
+ if(!reGauge(og)){UNDO.pop();uiUndo();msg='Non c’è niente da riadattare.';render();return}
+ const q=p();
+ msg='Disegno riadattato al campione attivo: i centimetri sono rimasti, ora sono '+
+  nf(q.rows)+' righe. Controlla i bordi, qualche maglia può essersi spostata di uno.';
+ save();fill();render()};
+$('#bRowIns').onclick=()=>rowGo(0);
+$('#bRowDel').onclick=()=>rowGo(1);
+/* cambiando fra righe e aghi la quota riparte da sé */
+$('#iRowAx').onchange=()=>{$('#iRowAt').value='';render()};
 $('#bUf').onclick=doUndo;
 $('#bRd').onclick=doRedo;
 dbl($('#bEm'),()=>{const q=p();pushUndo();q.shapes=[];q.div=[];q.regions=[];q.paint=[];q.add=[];q.rem=[];q.pts=[];setDONE(0);q.hold=null;
@@ -3319,10 +3636,13 @@ $('#gs').onchange=e=>{L.gid=e.target.value;A=null;sel=null;saveL();render()};
 $('#ps').onchange=e=>{S.cur=+e.target.value;A=null;selP=-1;side=0;sel=null;msg='';rSel=-1;bHot=-1;save();fill();render()};
 $('#pn').oninput=e=>{p().name=e.target.value;save();const o=$('#ps').options[S.cur];if(o)o.textContent=e.target.value||'Pezzo '+(S.cur+1)};
 $('#pa').onclick=()=>{S.ps.push(np('Pezzo '+(S.ps.length+1)));S.cur=S.ps.length-1;A=null;selP=-1;side=0;sel=null;save();fill();render()};
-$('#pc').onclick=()=>{const n=JSON.parse(encProj(S)).ps[S.cur];
- n.name=(p().name||'Pezzo')+' (copia)';n.shapes.forEach(sh=>{if(sh.mask)sh.mask=sh.mask.map(s=>Uint8Array.from(s,Number))});
- n.paint=(n.paint||[]).map(s=>Uint8Array.from(s,Number));
- S.ps.push(n);S.cur=S.ps.length-1;A=null;sel=null;save();fill();render()};
+$('#pc').onclick=()=>{
+ /* il duplicato va riportato dalle stringhe salvate agli array veri,
+    tutti quanti: le maschere, il pennello e i due strati di ritocco */
+ const n=fixPc(JSON.parse(encProj(S)).ps[S.cur],S.needles);
+ n.name=(p().name||'Pezzo')+' (copia)';
+ S.ps.push(n);S.cur=S.ps.length-1;A=null;selP=-1;side=0;sel=null;msg='Pezzo duplicato.';
+ save();fill();render()};
 dbl($('#pd'),()=>{if(S.ps.length<2)return;S.ps.splice(S.cur,1);S.cur=0;A=null;selP=-1;side=0;sel=null;save();fill();render()});
 $('#un').onchange=e=>{const q=p(),g=GA(),v=e.target.value;if(v===q.unit)return;pushUndo();
  const kx=g.s/10,ky=g.r/10;
@@ -3372,7 +3692,10 @@ window.__MQ={
  gauge(){return GA()}, gauges(){return GS()}, gaugeId(){return L.gid},
  useGauge(id){L.gid=id;A=null;saveL();FB.later()},
  openGauge(id){ggId=id;go('gauge')},
- go(v){go(v)}, touch(pane,fn){installTouch(pane,fn)}, coarse(){return coarse()}, uid, now};
+ go(v){go(v)}, touch(pane,fn){installTouch(pane,fn)}, coarse(){return coarse()},
+ /* la griglia com'è adesso, una riga per stringa: serve alle prove */
+ cells(){return prep().g.map(r=>Array.from(r).join(''))},
+ uid, now};
 
 /* ---------- password di apertura ---------- */
 async function sha(t){
