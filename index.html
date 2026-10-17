@@ -284,7 +284,16 @@ nav button{flex:1 1 90px;padding:10px 6px;font-weight:700}
 .wk{display:flex;gap:10px;align-items:stretch;padding:8px 16px 0;width:100%;max-width:1180px;margin:auto}
 /* mentre lavori, su schermo largo le indicazioni stanno di fianco al foglio:
    così il disegno si prende tutta l'altezza che c'è */
-#sw.side{flex:none;width:clamp(250px,26vw,340px);max-height:100%;overflow:auto;padding:0}
+#sw.side{flex:none;width:clamp(240px,23vw,320px);max-height:100%;overflow:auto;padding:0;
+ display:flex;flex-direction:column}
+/* il contagiri sta nella colonna, in fondo: il foglio si riprende la fascia di sotto */
+#sw.side #bar{position:static;margin-top:auto;padding:8px;gap:10px;border:1px solid var(--line);
+ border-top:1px solid var(--line);border-radius:12px;background:var(--card)}
+#sw.side #bar button{min-width:52px;padding:6px 10px}
+/* e il foglio non si ferma più a 1180px: su schermo largo prende tutto */
+#vProj.wmode .wk,#vProj.wmode .info{max-width:none}
+#vProj.wmode .wk{padding:6px 10px 0}
+#vProj.wmode .info{padding:6px 10px 10px}
 #sw.side .fr{padding:8px 11px;gap:10px;border-width:2px}
 #sw.side .rn{min-width:0;text-align:left;display:flex;align-items:baseline;gap:7px}
 #sw.side .rn span{display:inline}
@@ -299,6 +308,13 @@ nav button{flex:1 1 90px;padding:10px 6px;font-weight:700}
 #vProj.wmode .navw{margin-top:4px}
 #vProj.wmode nav button{padding:7px 6px}
 #vProj.wmode #bar{padding:5px 12px}
+/* mentre lavori, sottotitolo e linguette stanno sulla stessa riga */
+@media (min-width:1100px){
+ #vProj.wmode header.ph{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+ #vProj.wmode .phr{flex:1 1 100%}
+ #vProj.wmode .n{flex:1 1 220px;width:auto;min-width:0;padding:0}
+ #vProj.wmode .navw{flex:3 1 420px;margin-top:0;max-width:720px}
+}
 .sb{flex:none;width:232px;border:1px solid var(--line);border-radius:12px;background:var(--card);overflow:auto;max-height:100%}
 .sb.min{width:46px}
 .sbb{display:flex;align-items:center;gap:10px;width:100%;padding:7px;border:1px solid transparent;background:transparent;border-radius:8px;text-align:left}
@@ -2706,10 +2722,13 @@ function layoutWork(){
  /* di fianco solo quando lo schermo è davvero largo: in verticale il disegno
     si prende già tutto e le scritte si stringono da sole */
  const lato=mode==='work'&&innerWidth>=980&&innerWidth>innerHeight;
+ const bar=$('#bar');
  if(lato){if(sw.parentNode!==wk||sw.nextElementSibling!==ch)wk.insertBefore(sw,ch);
-  sw.classList.add('side')}
+  sw.classList.add('side');
+  if(bar&&bar.parentNode!==sw)sw.appendChild(bar)}
  else{if(sw.parentNode!==vp||sw.nextElementSibling!==wk)vp.insertBefore(sw,wk);
-  sw.classList.remove('side')}}
+  sw.classList.remove('side');
+  if(bar&&bar.parentNode!==vp)vp.appendChild(bar)}}
 const edgeTool=()=>tool==='edge';
 function ui(){
  document.querySelectorAll('#vProj nav button').forEach(b=>b.classList.toggle('on',b.dataset.m===mode));
@@ -3699,13 +3718,19 @@ function syncFold(){const v=$('#vProj');
 function fold(id,key,on){const e=$(id);e.classList.toggle('min',!!on);
  try{localStorage.setItem(key,on?'1':'0')}catch(x){}
  syncFold()}
-$('#navTog').onclick=()=>fold('#navw','mq-nav',!$('#navw').classList.contains('min'));
-/* la fascia dei dati ha due memorie: una per quando disegni, una per quando lavori */
+$('#navTog').onclick=()=>fold('#navw',navKey(),!$('#navw').classList.contains('min'));
+/* fascia dei dati e linguette hanno due memorie: una per quando disegni, una
+   per quando lavori. Mentre lavori partono chiuse: lo spazio va al disegno. */
 const infKey=()=>mode==='work'?'mq-infw':'mq-inf';
-function infApply(){const e=$('#info');if(!e)return;
- let v=null;try{v=localStorage.getItem(infKey())}catch(x){}
- if(v===null)v=mode==='work'?'1':'0';   /* mentre lavori parte chiusa: la riapri con la freccina */
- e.classList.toggle('min',v==='1');syncFold()}
+const navKey=()=>mode==='work'?'mq-navw':'mq-nav';
+function foldApply(id,key,chiusoAlLavoro){const e=$(id);if(!e)return;
+ let v=null;try{v=localStorage.getItem(key)}catch(x){}
+ if(v===null)v=(mode==='work'&&chiusoAlLavoro)?'1':'0';
+ e.classList.toggle('min',v==='1')}
+function infApply(){
+ foldApply('#info',infKey(),1);
+ foldApply('#navw',navKey(),1);
+ syncFold()}
 $('#infTog').onclick=()=>fold('#info',infKey(),!$('#info').classList.contains('min'));
 try{if(localStorage.getItem('mq-nav')==='1')$('#navw').classList.add('min');
  if(localStorage.getItem('mq-inf')==='1')$('#info').classList.add('min')}catch(x){}
