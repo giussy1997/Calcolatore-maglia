@@ -69,7 +69,7 @@ canvas{display:block;touch-action:none}
 .ht{margin:8px 0;padding:8px 11px;border-left:3px solid var(--acc);background:var(--accbg);border-radius:0 8px 8px 0;min-height:36px;font-size:14px}
 .fr{border:3px double var(--ink);border-radius:14px;padding:12px 16px;display:flex;gap:18px;align-items:center;background:var(--card);flex-wrap:wrap}
 .rn{text-align:center;min-width:94px}.rn span{display:block;color:var(--mut);font-size:12px;letter-spacing:.08em;text-transform:uppercase}
-.rn b,.big{font:700 56px/1 var(--serif);font-variant-numeric:tabular-nums}
+.rn b,.big{font:700 44px/1 var(--serif);font-variant-numeric:tabular-nums}
 .mm{font-weight:700;font-size:18px}
 .ac{color:var(--hot);font-weight:700}.mu{color:var(--mut);font-size:13px}.ok{color:var(--ok);font-weight:700}
 .ln{margin:6px 0;padding:8px 11px;border:1px solid var(--line);border-radius:9px;background:var(--card)}
@@ -282,6 +282,23 @@ p.st{color:var(--mut);font-size:13px;margin:6px 0}
 nav{display:flex;gap:6px;margin:8px 16px 0;max-width:1180px;flex-wrap:wrap}
 nav button{flex:1 1 90px;padding:10px 6px;font-weight:700}
 .wk{display:flex;gap:10px;align-items:stretch;padding:8px 16px 0;width:100%;max-width:1180px;margin:auto}
+/* mentre lavori, su schermo largo le indicazioni stanno di fianco al foglio:
+   così il disegno si prende tutta l'altezza che c'è */
+#sw.side{flex:none;width:clamp(250px,26vw,340px);max-height:100%;overflow:auto;padding:0}
+#sw.side .fr{padding:8px 11px;gap:10px;border-width:2px}
+#sw.side .rn{min-width:0;text-align:left;display:flex;align-items:baseline;gap:7px}
+#sw.side .rn span{display:inline}
+#sw.side .rn b{font-size:34px}
+#sw.side .mm{font-size:15px}
+#sw.side .ln,#sw.side .ch{margin:5px 0;padding:6px 9px;font-size:13px}
+#sw.side .mu{font-size:12px}
+/* e l'intestazione si stringe: mentre lavori conta il disegno, non il titolo */
+#vProj.wmode header.ph{padding-top:4px}
+#vProj.wmode .t{font:700 21px/1.2 var(--serif)}
+#vProj.wmode .n{font-size:13px;padding-bottom:0}
+#vProj.wmode .navw{margin-top:4px}
+#vProj.wmode nav button{padding:7px 6px}
+#vProj.wmode #bar{padding:5px 12px}
 .sb{flex:none;width:232px;border:1px solid var(--line);border-radius:12px;background:var(--card);overflow:auto;max-height:100%}
 .sb.min{width:46px}
 .sbb{display:flex;align-items:center;gap:10px;width:100%;padding:7px;border:1px solid transparent;background:transparent;border-radius:8px;text-align:left}
@@ -823,7 +840,9 @@ function geom(){
 
 function draw(){
  const g=geom(),q=GSR(),dn=doneOf();
- const d=Math.min(window.devicePixelRatio||1,2);
+ /* oltre qualche milione di punti il tablet non disegna più la tela: sto sotto */
+ const d=(()=>{const z=Math.min(window.devicePixelRatio||1,2),ar=Math.max(1,g.w*g.h);
+  return clamp(Math.min(z,Math.sqrt(11e6/ar),4096/Math.max(g.w,g.h,1)),.3,2)})();
  cv.width=Math.round(g.w*d);cv.height=Math.round(g.h*d);
  cv.style.width=g.w+'px';cv.style.height=g.h+'px';
  const pane=$('#kcvw');
@@ -957,13 +976,17 @@ cv.addEventListener('pointermove',e=>{
  const pc=mode==='fab'?pcol(p.c,GM.W):p.c;
  if(setHole(pc,p.r,drag.v)){touch();render()}});
 addEventListener('pointerup',()=>{drag=null});
+/* una tela troppo grande il tablet non la disegna: se si sfora, resto com'ero */
+function zOk(z,z0){
+ const was=Z;Z=z;const g=geom();Z=was;
+ return(Math.max(g.w,g.h)>13000||g.w*g.h>35e6)?z0:z}
 /* ingrandisce tenendo fermo il punto sotto il dito o il puntatore */
 function zoomAtK(k,cx,cy){
  const pane=$('#kcvw');if(!pane||!pane.clientWidth||!SC)return;
  const b=pane.getBoundingClientRect(),pL=parseFloat(pane.style.paddingLeft)||0;
  const w0=cv.clientWidth||1,h0=cv.clientHeight||1;
  const fx=(cx-b.left+pane.scrollLeft-pL)/w0, fy=(cy-b.top+pane.scrollTop)/h0;
- const z0=Z;Z=clamp(Z*k,.3,4);
+ const z0=Z;Z=zOk(clamp(Z*k,.3,4),z0);
  if(Math.abs(Z-z0)<1e-6)return;
  UZ=1;render();
  const pL2=parseFloat(pane.style.paddingLeft)||0;
@@ -1082,7 +1105,7 @@ function buildSb(){
  $('#kbRd').onclick=()=>step(REDO,UNDO,'ripetere');
  $('#kbEm').onclick=()=>{pushUndo();SC.m=SC.m.map(s=>s.replace(/1/g,'0'));msg='Motivo svuotato.';touch();render()};
  $('#bZm').onclick=()=>{Z=clamp(Z*.8,.3,4);UZ=1;render()};
- $('#bZp').onclick=()=>{Z=clamp(Z*1.25,.3,4);UZ=1;render()};
+ $('#bZp').onclick=()=>{Z=zOk(clamp(Z*1.25,.3,4),Z);UZ=1;render()};
  $('#kbFt').onclick=()=>{fit();render()};
  $('#bRep').onclick=()=>{rep=rep===1?3:1;if(!UZ)fit();render()};
  $('#bImg').onclick=imOpen;
@@ -1989,11 +2012,25 @@ function projTotals(){ /* totale di progetto, ricalcolato solo quando qualcosa c
  S.ps.forEach(z=>{const c=pieceTotal(z);t.per.push(c);if(c){t.cells+=c.cells;t.wt+=c.wt}});
  return PT=t}
 
+/* ---------- quanto grande può diventare la tela ----------
+   Ingrandendo molto, il foglio diventa una tela di milioni di punti: oltre un
+   certo limite il tablet smette di disegnarla e resta tutto bianco. Qui sto
+   sotto quel limite abbassando la finezza del disegno, e solo se non basta
+   metto un tetto all'ingrandimento. */
+const CVMAX=11e6, CVDIM=4096, CVMIN=.3;
+function cvDPR(w,hh){
+ const d=Math.min(devicePixelRatio||1,2), ar=Math.max(1,w*hh);
+ return clamp(Math.min(d,Math.sqrt(CVMAX/ar),CVDIM/Math.max(w,hh,1)),CVMIN,2)}
+function zCap(a){
+ const uw=Math.max(1,a.W*8), uh=Math.max(1,a.H*8*a.gg.asp);
+ return clamp(Math.min(Math.sqrt(CVMAX/(uw*uh*CVMIN*CVMIN)),CVDIM/(CVMIN*Math.max(uw,uh))),.15,4)}
+
 /* ---------- disegno ---------- */
 function draw(){
  const a=prep(),q=p(),W=a.W,H=a.H,g=a.gg,h=W/2,cm=q.unit==='cm';
+ const zc=zCap(a);if(Z>zc)Z=zc;
  const cw=8*Z, ch=cw*g.asp, L=0, T=0, w=W*cw, hh=H*ch;
- const d=Math.min(devicePixelRatio||1,2), cv=$('#cv');
+ const d=cvDPR(w,hh), cv=$('#cv');
  cv.width=Math.round(w*d);cv.height=Math.round(hh*d);cv.style.width=w+'px';cv.style.height=hh+'px';
  const pane=$('#cvw');
  if(pane&&pane.clientWidth){pane.style.paddingLeft=Math.max(0,(pane.clientWidth-w)/2)+'px';
@@ -2004,8 +2041,13 @@ function draw(){
  GM={L,T,cw,ch,h,H,W};try{window.__GM=GM}catch(e){}
 
  x.lineWidth=1;
- for(let i=0;i<=W;i++){x.strokeStyle=(i-h)%10===0?'#aebbd6':'#e4e9f4';x.beginPath();x.moveTo(XC(i),Y(0));x.lineTo(XC(i),Y(H));x.stroke()}
- for(let j=0;j<=H;j++){x.strokeStyle=j%10===0?'#aebbd6':'#e4e9f4';x.beginPath();x.moveTo(XC(0),Y(j));x.lineTo(XC(W),Y(j));x.stroke()}
+ /* ogni 10 una riga marcata, ogni 5 una più leggera: servono da riferimento */
+ for(let i=0;i<=W;i++){const k=(i-h)%10===0?2:((i-h)%5===0?1:0);
+  x.strokeStyle=k===2?'#aebbd6':k===1?'#c6d1e8':'#e4e9f4';
+  x.beginPath();x.moveTo(XC(i),Y(0));x.lineTo(XC(i),Y(H));x.stroke()}
+ for(let j=0;j<=H;j++){const k=j%10===0?2:(j%5===0?1:0);
+  x.strokeStyle=k===2?'#aebbd6':k===1?'#c6d1e8':'#e4e9f4';
+  x.beginPath();x.moveTo(XC(0),Y(j));x.lineTo(XC(W),Y(j));x.stroke()}
 
  /* zona in lavoro */
  let ks=-1,cf=null;
@@ -2067,8 +2109,8 @@ function draw(){
  paths.forEach((L2,k)=>{x.strokeStyle=ZP[k%8][1];x.beginPath();
   for(let i=0;i<L2.length;i+=4){x.moveTo(L2[i],L2[i+1]);x.lineTo(L2[i+2],L2[i+3])}x.stroke()});
 
- /* ritocchi a mano: un puntino, così sai cosa hai spostato tu */
- if(mode==='draw'&&(q.add&&q.add.length)){
+ /* ritocchi a mano: un puntino, così sai cosa hai spostato tu (si può spegnere) */
+ if(mode==='draw'&&showRt&&(q.add&&q.add.length)){
   const rr=Math.max(1.1,Math.min(cw,ch)*.16);
   for(let r=0;r<H;r++){const a1=q.add[r],r1=q.rem[r];if(!a1||!r1)continue;
    for(let c=0;c<W;c++){
@@ -2093,6 +2135,13 @@ function draw(){
  if(box){const x0=XC(clamp(box.c0,0,W)),x1=XC(clamp(box.c1+1,0,W)),y0=Y(clamp(box.r1+1,0,H)),y1=Y(clamp(box.r0,0,H));
   x.fillStyle='rgba(43,76,201,.1)';x.fillRect(x0,y0,x1-x0,y1-y0);
   x.strokeStyle='#2b4cc9';x.lineWidth=2;x.setLineDash([7,4]);x.strokeRect(x0,y0,x1-x0,y1-y0);x.setLineDash([])}
+ /* dove finirà il pezzo copiato */
+ if(mode==='draw'&&tool==='copy'&&CLIP&&clipAt){
+  const x0=XC(clamp(clipAt.c,0,W)),x1=XC(clamp(clipAt.c+CLIP.w,0,W)),
+        y0=Y(clamp(clipAt.r+CLIP.h,0,H)),y1=Y(clamp(clipAt.r,0,H));
+  x.fillStyle='rgba(29,138,90,.12)';x.fillRect(x0,y0,x1-x0,y1-y0);
+  x.strokeStyle='#1d8a5a';x.lineWidth=2;x.setLineDash([4,4]);
+  x.strokeRect(x0,y0,x1-x0,y1-y0);x.setLineDash([])}
  if(sel&&sel.kind==='zone'){x.strokeStyle='#2b4cc9';x.lineWidth=3;x.beginPath();
   for(let r=0;r<H;r++)for(let c=0;c<W;c++){if(a.id[r*W+c]!==sel.k)continue;
    const x0=XC(c),x1=x0+cw,y1=Y(r),y0=Y(r+1);
@@ -2223,7 +2272,7 @@ function nrm(d){return{c0:Math.min(d.c0,d.c1),c1:Math.max(d.c0,d.c1),r0:Math.min
 
 /* ---------- righello e misure dei tratti ---------- */
 const RUL='#c2369b';
-let rSel=-1,rDrag=-1,bDrag=-1,bWho='',bHot=-1,showMs=1,tDrag=-1;
+let rSel=-1,rDrag=-1,bDrag=-1,bWho='',bHot=-1,showMs=1,showRt=1,tDrag=-1;
 const TANG=34;   /* lunghezza della maniglia, in punti schermo */
 function chip(x,px,py,txt,col,inv,nx,ny){
  x.font='700 11px DM Sans,system-ui,sans-serif';
@@ -2608,7 +2657,10 @@ function hint(){
  if(!t){
   if(tool==='edge'){const q2=p();
    let n2=0;(q2.add||[]).forEach(r2=>r2.forEach(v=>{if(v)n2++}));(q2.rem||[]).forEach(r2=>r2.forEach(v=>{if(v)n2++}));
-   t='Tocca una maglia per aggiungerla o toglierla: così sposti gli scalini di aumenti e diminuzioni come vuoi tu. Trascinando continui nello stesso verso.'+
+   t='Tocca una maglia per aggiungerla o toglierla: così sposti gli scalini di aumenti e diminuzioni come vuoi tu. Trascinando continui nello stesso verso. Per righe o aghi interi scrivi le quote nella barra, invece di toccare quadretto per quadretto.'+
+    (mir||mirV?' Specchio acceso: lo stesso ritocco va anche '+
+      (mir&&mirV?'dall’altro lato e sopra-sotto':mir?'dall’altro lato':'sopra e sotto')+'.':
+      ' Con lo «Specchio ai lati» acceso il ritocco si ripete dall’altra parte.')+
     (n2?' Finora '+n2+(n2===1?' maglia ritoccata.':' maglie ritoccate.'):'')}
   else if(patTool())t=tool==='area'?'Trascina un rettangolo sul disegno per creare l’area scelta.':
    tool==='paint'?'Trascina sul disegno per colorare le maglie con il colore scelto.':'Trascina per togliere il colore dalle maglie.';
@@ -2619,6 +2671,9 @@ function hint(){
    :n===1?'Tocca di nuovo per il secondo punto: comparirà la misura del tratto.'
    :'Tieni premuto su un punto e spostalo: le misure si aggiornano mentre muovi. Il cerchietto vuoto a metà tratto: trascinalo per curvare, toccalo per infilare un punto nuovo.'+(p().rcl?'':' Portando l’ultimo punto sul primo si chiude l’anello.')}
  else if(tool==='meas')t='Trascina un rettangolo per misurarlo, oppure tocca una zona colorata per averne il conteggio.';
+ else if(tool==='copy')t=!CLIP
+  ?'Trascina un rettangolo intorno alla parte da copiare, poi «Copia» nella barra.'
+  :'In mano '+CLIP.w+' × '+CLIP.h+' maglie: tocca dove vuoi l’angolo in basso a sinistra e premi «Incolla». Puoi ribaltarlo prima di incollarlo.';
   else if(tool==='div')t='Tocca una riga della griglia per mettere o togliere una linea di divisione.';
   else if(selP>=0&&P[selP])t='Punto scelto: '+(q.unit==='cm'?cm1(P[selP][0])+' cm · '+cm1(P[selP][1])+' cm':lv(P[selP][0])+' · riga '+P[selP][1])+
    '. Trascinalo per spostarlo, oppure trascina il quadratino in fondo alla linea tratteggiata per ruotare su questo vertice: i due tratti si piegano raccordati. Toccalo di nuovo per lasciarlo.';
@@ -2638,11 +2693,29 @@ let _co=null;
 function coarse(){if(_co===null){try{_co=matchMedia('(pointer:coarse)').matches}catch(e){_co=false}}return _co}
 
 const patTool=()=>tool==='area'||tool==='paint'||tool==='erase';
+/* le indicazioni di lavoro: sopra il foglio sugli schermi stretti, di fianco
+   su quelli larghi, dove rubano meno spazio all'altezza del disegno */
+let _lm='';
+function layoutWork(){
+ const sw=$('#sw'),wk=$('#wk'),ch=$('#chart'),vp=$('#vProj');
+ if(!sw||!wk||!ch||!vp)return;
+ vp.classList.toggle('wmode',mode==='work');
+ /* la fascia dei dati si ricorda da sé se la tieni aperta mentre disegni
+    e chiusa mentre lavori: sono due momenti diversi */
+ if(mode!==_lm){_lm=mode;infApply()}
+ /* di fianco solo quando lo schermo è davvero largo: in verticale il disegno
+    si prende già tutto e le scritte si stringono da sole */
+ const lato=mode==='work'&&innerWidth>=980&&innerWidth>innerHeight;
+ if(lato){if(sw.parentNode!==wk||sw.nextElementSibling!==ch)wk.insertBefore(sw,ch);
+  sw.classList.add('side')}
+ else{if(sw.parentNode!==vp||sw.nextElementSibling!==wk)vp.insertBefore(sw,wk);
+  sw.classList.remove('side')}}
 const edgeTool=()=>tool==='edge';
 function ui(){
  document.querySelectorAll('#vProj nav button').forEach(b=>b.classList.toggle('on',b.dataset.m===mode));
  const sh=(id,v)=>{const e=$(id);if(e)e.hidden=!v};
  sh('#sw',mode==='work');sh('#sg',mode==='gauge');sh('#wk',mode!=='gauge');sh('#info',mode!=='gauge');
+ layoutWork();
  sh('#ht',mode!=='gauge');
  $('#bar').hidden=mode!=='work';
  $('#sbBody').querySelectorAll('[data-t]').forEach(b=>b.classList.toggle('on',b.dataset.t===tool));
@@ -2659,15 +2732,57 @@ function ui(){
  $('#ht').hidden=mode==='gauge';
  $('#sb').hidden=mode!=='draw';$('#dr').hidden=mode!=='draw';
  const isDraw=tool==='draw';
- ['#hMod','#bSub','#bMi','#bMv2','#sbSnap','#hFor','#bCl','#bUn','#bFl'].forEach(k=>{const e=$(k);if(e)e.hidden=!isDraw||mode!=='draw'});
+ ['#bSub','#sbSnap','#hFor','#bCl','#bUn','#bFl'].forEach(k=>{const e=$(k);if(e)e.hidden=!isDraw||mode!=='draw'});
+ /* lo specchio serve anche mentre ritocchi i bordi */
+ const mirUse=isDraw||tool==='edge';
+ ['#hMod','#bMi','#bMv2'].forEach(k=>{const e=$(k);if(e)e.hidden=!mirUse||mode!=='draw'});
  /* l'asse dello specchio sopra-sotto si vede solo quando serve */
  {const e=$('#sbAx'),cmu=p().unit==='cm',i=$('#iAxY');
-  if(e)e.hidden=!isDraw||mode!=='draw'||!mirV;
+  if(e)e.hidden=!mirUse||mode!=='draw'||!mirV;
   if($('#labAx'))$('#labAx').firstChild.nodeValue=cmu?'Asse all’altezza (cm)':'Asse a riga';
   if(i&&document.activeElement!==i)i.value=cmu?+(+axY).toFixed(1):Math.round(axY)}
  ['#hRul','#rlUn','#rlCl','#rlFl'].forEach(k=>{const e=$(k);if(e)e.hidden=tool!=='rule'||mode!=='draw'});
- ['#hEdg','#bEdZ'].forEach(k=>{const e=$(k);if(e)e.hidden=tool!=='edge'||mode!=='draw'});
+ ['#hEdg','#bEdZ','#sbEdg','#hTw','#sbTw'].forEach(k=>{const e=$(k);if(e)e.hidden=tool!=='edge'||mode!=='draw'});
+ /* il pezzo gemello: chi è, e se ripetere da solo */
+ {const se=$('#edTwin'),au=$('#edAuto'),th=$('#twHint'),q4=p();
+  if(se){const alt=S.ps.map((z,i)=>({z,i})).filter(o=>o.z!==q4);
+   const val=se.value;
+   se.innerHTML='<option value="">— nessuno —</option>'+
+    alt.map(o=>'<option value="'+pidOf(o.z)+'">'+esc(o.z.name||'Pezzo '+(o.i+1))+'</option>').join('');
+   const want=q4.twin&&alt.some(o=>o.z.pid===q4.twin)?q4.twin:'';
+   if(document.activeElement!==se||val!==want)se.value=want;
+   if(au)au.checked=q4.twinAuto!==0;
+   const sb2=$('#bEdSync');if(sb2)sb2.disabled=!want;
+   if(th)th.textContent=!alt.length?'In questo progetto c’è solo questo pezzo.'
+    :!want?'Scegli il pezzo con lo stesso scalfo: i ritocchi fatti qui si ripeteranno lì, stesso ago e stessa riga.'
+    :(q4.twinAuto!==0?'Ogni ritocco fatto qui va anche su «'+esc(twinOf(q4)?twinOf(q4).name||'pezzo':'pezzo')+'», allo stesso ago e alla stessa riga. Vale anche al contrario.'
+      :'Collegati ma a mano: usa il tasto qui sotto quando vuoi ripetere tutto.')}}
+ /* il ritocco scritto parte dalla riga dove sei, e gli aghi vuoti vogliono dire tutti */
+ {const r0=$('#edR0'),r1=$('#edR1'),eh=$('#edHint');
+  if(r0&&document.activeElement!==r0&&!r0.value){
+   const q3=p(),rp=(rSel>=0&&q3.ruler&&q3.ruler[rSel])?Math.round(q3.ruler[rSel][1]*kxy(q3,GA())[1]):DONE();
+   r0.value=String(clamp(rp,0,1400)+1)}
+  if(r1&&document.activeElement!==r1&&!r1.value&&r0)r1.value=r0.value;
+  if(eh)eh.textContent='Aghi vuoti = tutta la riga. Scrivi S82 o D20 come sul righello, oppure il numero con il meno per sinistra.'+
+   (mir||mirV?' Specchio acceso: vale anche dall’altra parte.':'')}
+ /* copia e incolla */
+ ['#hCopy','#sbCopy'].forEach(k=>{const e=$(k);if(e)e.hidden=tool!=='copy'||mode!=='draw'});
+ {const t=$('#bCpTake'),u=$('#bCpPut'),h=$('#cpHint');
+  if(t)t.disabled=!(sel&&sel.kind==='rect');
+  if(u)u.disabled=!CLIP;
+  if(h)h.textContent=!CLIP
+   ?'Trascina un rettangolo sul disegno, poi «Copia». Il riquadro resta in mano anche cambiando pezzo: così porti lo stesso scalfo dal dietro al davanti.'
+   :'In mano: '+CLIP.w+' maglie × '+CLIP.h+' righe'+
+    (CLIP.nrt?', di cui '+CLIP.nrt+' ritoccate a mano':'')+
+    '. Tocca dove vuoi l’angolo in basso a sinistra, poi «Incolla».';
+  const lo=$('#labCpOnly'),co=$('#cpOnly');
+  if(co)co.disabled=!(CLIP&&CLIP.nrt);
+  if(lo)lo.textContent=CLIP&&!CLIP.nrt?'solo i ritocchi dei bordi (qui non ce n’erano)'
+   :'solo i ritocchi dei bordi, non la sagoma'}
  {const bm=$('#bMs');if(bm)bm.classList.toggle('on',!!showMs)}
+ {const br=$('#bRt');if(br){br.classList.toggle('on',!!showRt);
+  br.innerHTML=svg('edge')+'<span>'+(showRt?'Segni dei ritocchi':'Ritocchi senza segni')+'</span>';
+  br.title=showRt?'Nascondi i pallini dei ritocchi':'Mostra i pallini dei ritocchi'}}
  /* il gruppo delle righe e degli aghi parla nelle unità del pezzo */
  {const q2=p(),cmu=q2.unit==='cm',ax=$('#iRowAx'),nd=ax&&ax.value==='n';
   const la=$('#labRowAt'),ln=$('#labRowN'),rh=$('#rowHint'),e=$('#iRowAt');
@@ -2741,6 +2856,7 @@ function fill(){
  $('#nm').value=S.name;$('#nt').value=S.note;
  $('#mc').innerHTML=Object.keys(MC).map(k=>'<option'+(k===S.machine?' selected':'')+'>'+k+'</option>').join('');
  $('#nd').value=S.needles;fillG();
+ {const pp=$('#pcPop');if(pp&&!pp.hidden)pgFill()}   /* il riquadro aperto resta allineato */
  $('#ps').innerHTML=S.ps.map((z,i)=>'<option value="'+i+'"'+(i===S.cur?' selected':'')+'>'+esc(z.name||'Pezzo '+(i+1))+'</option>').join('');
  const q=p();$('#pn').value=q.name;$('#un').value=q.unit;
  $('#nh').value=q.unit==='cm'?q.hcm:q.rows;$('#uu').textContent=q.unit==='cm'?'cm di altezza':'righe';
@@ -2758,9 +2874,12 @@ function fill(){
    Fotografia del pezzo prima di ogni modifica. Annullando subito dopo «Chiudi»
    la forma si riapre con tutti i suoi punti, pronta da correggere. */
 let UNDO=[],REDO=[],uKey='';
-function shot(){const q=p();
+function shot(){const q=p(),t=twinOf(q);
  return JSON.stringify({s:q.shapes,d:q.div,r:q.regions,pa:q.paint,pt:q.pts,
-  ad:q.add,rm:q.rem,ro:q.rows,hc:q.hcm,un:q.unit,sb:sub,mi:mir,mv:mirV,ay:axY},REP)}
+  ad:q.add,rm:q.rem,ro:q.rows,hc:q.hcm,un:q.unit,sb:sub,mi:mir,mv:mirV,ay:axY,
+  gi:q.gid||'',ag:L.gid,
+  /* se c'è un gemello, nella fotografia ci sono anche i suoi ritocchi */
+  tw:t?{p:q.twin,ad:t.add,rm:t.rem}:0},REP)}
 /* la pila vale per un solo pezzo: cambiando pezzo o progetto riparte da zero */
 function uKeep(){const k=S.id+'|'+S.cur;if(k!==uKey){UNDO=[];REDO=[];uKey=k}}
 function pushUndo(){
@@ -2774,6 +2893,12 @@ function applySnap(j){
  q.add=(o.ad||[]).map(x=>toU8(x,W));q.rem=(o.rm||[]).map(x=>toU8(x,W));
  q.rows=o.ro;q.hcm=o.hc;q.unit=o.un;
  sub=o.sb?1:0;mir=o.mi?1:0;mirV=o.mv?1:0;axY=+o.ay||0;
+ /* anche il campione torna indietro: se no il disegno si rileggerebbe con quello sbagliato */
+ if(o.gi!==undefined)q.gid=o.gi||'';
+ /* e il gemello torna indietro insieme a lui */
+ if(o.tw&&o.tw.p){const t=S.ps.find(z=>z!==q&&z.pid===o.tw.p);
+  if(t){t.add=(o.tw.ad||[]).map(x=>toU8(x,W));t.rem=(o.tw.rm||[]).map(x=>toU8(x,W))}}
+ if(o.ag&&o.ag!==L.gid&&GS().some(z=>z.id===o.ag)){L.gid=o.ag;saveL();FB.later()}
  selP=-1;sel=null;A=null;PT=null;rSel=-1;bHot=-1;bDrag=-1;pDrag=-1;tDrag=-1;fh=null}
 function step(from,to,word){
  uKeep();
@@ -3051,9 +3176,126 @@ function edgeAt(c,force){
  const on=!!a.g[r][cc];
  const want=force===null||force===undefined?(on?0:1):force;
  if(dn&&dn.ev===undefined&&force===null)dn.ev=want;
- if(want){q.add[r][cc]=1;q.rem[r][cc]=0}
- else{q.rem[r][cc]=1;q.add[r][cc]=0}
- return on!==!!want}
+ let ch2=0;
+ const tw=twinLive(q);
+ const put=(r2,c2)=>{
+  if(r2<0||r2>=a.H||c2<0||c2>=a.W||!q.add[r2]||!q.rem[r2])return;
+  const era=!!a.g[r2][c2];
+  if(want){q.add[r2][c2]=1;q.rem[r2][c2]=0}
+  else{q.rem[r2][c2]=1;q.add[r2][c2]=0}
+  if(tw)twinCell(tw.t,tw.lim,r2,c2,want?'add':'rem');
+  if(era!==!!want)ch2=1};
+ put(r,cc);
+ /* con lo specchio acceso lo stesso ritocco va anche dall'altra parte */
+ const cs=a.W-1-cc, rs=Math.round(2*axY*a.ky)-1-r;
+ if(mir)put(r,cs);
+ if(mirV)put(rs,cc);
+ if(mir&&mirV)put(rs,cs);
+ return ch2}
+
+/* ---------- pezzi gemelli ----------
+   Davanti e dietro hanno lo stesso scalfo: legandoli, ogni ritocco fatto su uno
+   si ripete sull'altro allo stesso ago e alla stessa riga. */
+function pidOf(q){if(!q.pid)q.pid=uid();return q.pid}
+function twinOf(q){
+ if(!q||!q.twin)return null;
+ const t=S.ps.find(z=>z!==q&&z.pid===q.twin);
+ return t||null}
+function twinFit(t){
+ const W=S.needles,H=rowsOf(t,GA());
+ ['add','rem'].forEach(k=>{if(!t[k])t[k]=[];
+  while(t[k].length<H)t[k].push(U8(W));
+  for(let i=0;i<t[k].length;i++){
+   if(!(t[k][i] instanceof Uint8Array))t[k][i]=toU8(t[k][i],W);
+   if(t[k][i].length!==W){const z=U8(W);z.set(t[k][i].subarray(0,Math.min(W,t[k][i].length)));t[k][i]=z}}});
+ return{W,H}}
+/* scrive la stessa maglia sul gemello, se quel punto esiste anche lì */
+function twinCell(t,lim,r,c,act){
+ if(r<0||r>=lim.H||c<0||c>=lim.W)return;
+ if(act==='add'){t.add[r][c]=1;t.rem[r][c]=0}
+ else if(act==='rem'){t.rem[r][c]=1;t.add[r][c]=0}
+ else{t.add[r][c]=0;t.rem[r][c]=0}}
+/* il gemello su cui ripetere adesso, o niente se è spento */
+function twinLive(q){
+ if(!q.twin||q.twinAuto===0)return null;
+ const t=twinOf(q);if(!t)return null;
+ return{t,lim:twinFit(t)}}
+
+/* ---------- ritocco scritto ----------
+   Invece di togliere o mettere quadretti uno per uno, si scrive da che riga a
+   che riga e da che ago a che ago, e l'app ritocca tutto il rettangolo. */
+function needCol(s,W){
+ const h=W/2, m=/^\s*([sdSD])?\s*(-?\d+)\s*$/.exec(String(s==null?'':s));
+ if(!m)return null;
+ const n=+m[2], k=(m[1]||'').toUpperCase();
+ if(k==='S')return clamp(h-Math.abs(n),0,W-1);
+ if(k==='D')return clamp(h+Math.abs(n)-1,0,W-1);
+ return clamp(n<0?h+n:(n>0?h+n-1:h),0,W-1)}
+function edgeBox(c0,c1,r0,r1,act){
+ const q=p(),a=prep(),W=a.W,H=a.H;
+ c0=clamp(c0,0,W-1);c1=clamp(c1,0,W-1);r0=clamp(r0,0,H-1);r1=clamp(r1,0,H-1);
+ if(c1<c0){const t=c0;c0=c1;c1=t}
+ if(r1<r0){const t=r0;r0=r1;r1=t}
+ let n=0;
+ const tw=twinLive(q);
+ const put=(r,c)=>{if(r<0||r>=H||c<0||c>=W||!q.add[r]||!q.rem[r])return;
+  if(tw)twinCell(tw.t,tw.lim,r,c,act);
+  if(act==='off'){if(q.add[r][c]||q.rem[r][c])n++;q.add[r][c]=0;q.rem[r][c]=0;return}
+  const era=!!a.g[r][c], vuoi=act==='add'?1:0;
+  if(vuoi){q.add[r][c]=1;q.rem[r][c]=0}else{q.rem[r][c]=1;q.add[r][c]=0}
+  if(era!==!!vuoi)n++};
+ for(let r=r0;r<=r1;r++)for(let c=c0;c<=c1;c++){
+  put(r,c);
+  /* con lo specchio acceso vale anche dall'altra parte, come il ritocco a mano */
+  const cs=W-1-c, rs=Math.round(2*axY*a.ky)-1-r;
+  if(mir)put(r,cs);
+  if(mirV)put(rs,c);
+  if(mir&&mirV)put(rs,cs)}
+ A=null;return n}
+
+/* ---------- copia e incolla di un pezzo di disegno ----------
+   Si prende un rettangolo di maglie così com'è sul foglio e lo si riposa
+   altrove come ritocco: si può ribaltare a destra-sinistra o sopra-sotto. */
+let CLIP=null, clipAt=null;
+function clipTake(){
+ const b=sel&&sel.kind==='rect'?sel:null;if(!b)return 0;
+ const q=p(),a=prep();
+ const c0=clamp(b.c0,0,a.W-1),c1=clamp(b.c1,0,a.W-1),r0=clamp(b.r0,0,a.H-1),r1=clamp(b.r1,0,a.H-1);
+ const w=c1-c0+1,h=r1-r0+1,g=[],pt=[],ad=[],rm=[];
+ for(let r=r0;r<=r1;r++){const gz=U8(w),pz=U8(w),az=U8(w),rz=U8(w);
+  for(let c=c0;c<=c1;c++){const i=c-c0;
+   gz[i]=a.g[r][c]?1:0;pz[i]=(q.paint[r]&&q.paint[r][c])||0;
+   az[i]=(q.add[r]&&q.add[r][c])?1:0;rz[i]=(q.rem[r]&&q.rem[r][c])?1:0}
+  g.push(gz);pt.push(pz);ad.push(az);rm.push(rz)}
+ CLIP={w,h,g,p:pt,ad,rm,nrt:ad.reduce((n,z)=>n+z.reduce((m,v)=>m+v,0),0)
+  +rm.reduce((n,z)=>n+z.reduce((m,v)=>m+v,0),0)};
+ clipAt={c:c0,r:r0};
+ return CLIP}
+function clipPut(){
+ if(!CLIP)return 0;
+ const q=p(),a=prep(),W=a.W,H=a.H,at2=clipAt||{c:0,r:0};
+ const ck=id=>{const e=$(id);return !!(e&&e.checked)};
+ const mx=ck('#cpMx'), my=ck('#cpMy'), rep=ck('#cpRep'), solo=ck('#cpOnly')&&CLIP.ad;
+ const tw=twinLive(q);
+ let n=0;
+ for(let j=0;j<CLIP.h;j++)for(let i=0;i<CLIP.w;i++){
+  const r=at2.r+j, c=at2.c+i;
+  if(r<0||r>=H||c<0||c>=W||!q.add[r]||!q.rem[r])continue;
+  const sj=my?CLIP.h-1-j:j, si=mx?CLIP.w-1-i:i;
+  /* solo i ritocchi: riporto le stesse maglie aggiunte e tolte, senza la sagoma.
+     Così lo scalfo sistemato a mano sul dietro si ripete uguale sul davanti. */
+  if(solo){
+   const act=CLIP.ad[sj][si]?'add':CLIP.rm[sj][si]?'rem':(rep?'off':'');
+   if(!act)continue;
+   if(act==='add'){q.add[r][c]=1;q.rem[r][c]=0;n++}
+   else if(act==='rem'){q.rem[r][c]=1;q.add[r][c]=0;n++}
+   else{q.add[r][c]=0;q.rem[r][c]=0}
+   if(tw)twinCell(tw.t,tw.lim,r,c,act);
+   continue}
+  if(CLIP.g[sj][si]){q.add[r][c]=1;q.rem[r][c]=0;
+   if(q.paint[r])q.paint[r][c]=CLIP.p[sj][si];n++}
+  else if(rep){q.rem[r][c]=1;q.add[r][c]=0;if(q.paint[r])q.paint[r][c]=0}}
+ A=null;return n}
 function paintAt(c){const q=p(),a=prep(),{r,c:cc}=cellAt(c);
  if(!a.g[r]||!a.g[r][cc])return;const v=tool==='erase'?0:yc;
  if(q.paint[r][cc]!==v){q.paint[r][cc]=v;return 1}}
@@ -3085,7 +3327,7 @@ cv.addEventListener('pointerdown',e=>{
     if(b>=0){bDrag=b;bWho='p';bHot=b;msg='';render()}
     else if(e.pointerType==='pen')fh=[[c.u,c.v]];   /* la penna traccia a mano libera */
    }}}
- else if(mode==='draw'&&tool==='meas'){sel=null;drag={c0:k.c,c1:k.c,r0:k.r,r1:k.r};render()}
+ else if(mode==='draw'&&(tool==='meas'||tool==='copy')){sel=null;drag={c0:k.c,c1:k.c,r0:k.r,r1:k.r};render()}
  else if(mode==='draw'&&tool==='area'){drag={c0:k.c,c1:k.c,r0:k.r,r1:k.r};render()}
  else if(mode==='draw'&&tool==='edge'){pushUndo();if(edgeAt(c,null)){A=null;save();render()}}
  else if(mode==='draw'&&(tool==='paint'||tool==='erase')){pushUndo();if(paintAt(c)){save();render()}}});
@@ -3161,7 +3403,9 @@ cv.addEventListener('pointerup',e=>{
    msg=RTN[rt]+' aggiunta: '+cn(b.c0)+'–'+cn(b.c1)+', righe '+(b.r0+1)+'–'+(b.r1+1)+
     (rt==='cable'?'. Il centro di rotazione è a metà: spostalo nell’elenco qui sotto.':'.');
    A=null;save()}
-  else if(b.c0!==b.c1||b.r0!==b.r1){sel={kind:'rect',...b};msg=''}
+  else if(b.c0!==b.c1||b.r0!==b.r1){sel={kind:'rect',...b};msg='';
+   /* col copia-incolla l'angolo in basso a sinistra fa anche da posto dove incollare */
+   if(tool==='copy'&&CLIP)clipAt={c:b.c0,r:b.r0}}
   else tap(c);
   dn=null;render();return}
  if(dn&&!dn.mv)tap(c);
@@ -3177,6 +3421,11 @@ function tap(c){
  if(patTool()){if(tool!=='area')paintAt(c);return}
  if(tool==='meas'){
   if(a.g[k.r]&&a.g[k.r][k.c])sel={kind:'zone',k:a.id[k.r*a.W+k.c]};else sel=null;return}
+ if(tool==='copy'){   /* un tocco secco dice dove va l'angolo in basso a sinistra */
+  if(CLIP){clipAt={c:k.c,r:k.r};
+   msg='Posto scelto: '+cn(k.c)+', riga '+(k.r+1)+'. Premi «Incolla».'}
+  else msg='Prima trascina un rettangolo sul disegno e premi «Copia».';
+  return}
  if(tool==='div'){const g=GA(),[,ky]=kxy(q,g);
   const v=q.unit==='cm'?snapPt(c)[1]:clamp(Math.round(c.v),0,a.H);
   if(v<=0||v*ky>=a.H)return;
@@ -3201,6 +3450,7 @@ const IC={
  sub:'<rect x="2" y="2" width="12" height="12" rx="2.5"/><path d="M5 8h6"/>',
  mirror:'<path d="M8 1v14" stroke-dasharray="2 2"/><path d="M6 4 2 8l4 4Z"/><path d="M10 4l4 4-4 4Z"/>',
  mirrorv:'<path d="M1 8h14" stroke-dasharray="2 2"/><path d="M4 6 8 2l4 4Z"/><path d="M4 10l4 4 4-4Z"/>',
+ copy:'<rect x="2" y="2" width="9" height="9" rx="1.5" stroke-dasharray="3 2"/><rect x="5.5" y="5.5" width="9" height="9" rx="1.5"/>',
  rows:'<path d="M1 3h14M1 8h14M1 13h14" opacity=".45"/><path d="M8 5.5v5M5.5 8h5"/>',
  cols:'<path d="M3 1v14M8 1v14M13 1v14" opacity=".45"/><path d="M8 5.5v5M5.5 8h5"/>',
  check:'<path d="M2 8.5 6 12.5 14 3"/>',
@@ -3228,6 +3478,7 @@ function buildChrome(){
   sbb('#sbTog','menu','Apri o chiudi la barra')+
   '<div class="sbsep"></div><div class="sbh">Strumenti</div>'+
   sbb('draw','draw','Traccia')+sbb('div','div','Linea di divisione')+sbb('meas','meas','Misura')+
+  sbb('copy','copy','Copia e incolla')+
   sbb('rule','rule','Righello')+sbb('edge','edge','Ritocca i bordi')+
   sbb('area','area','Area motivo')+sbb('paint','paint','Pennello')+sbb('erase','erase','Gomma')+
   '<div class="sbsep"></div>'+
@@ -3238,7 +3489,37 @@ function buildChrome(){
   '<div class="sbg" id="sbSnap"><label>Aggancio<select id="sn"></select></label></div>'+
   '<div class="sbh" id="hFor">Forma</div>'+sbb('#bCl','check','Chiudi la forma')+sbb('#bUn','nopoint','Togli punto')+
   sbb('#bFl','straight','Raddrizza i tratti')+
-  '<div class="sbh" id="hEdg">Ritocco</div>'+sbb('#bEdZ','trash','Azzera i ritocchi')+
+  '<div class="sbh" id="hCopy">Copia e incolla</div>'+
+  '<div class="sbg" id="sbCopy">'+
+   '<div class="tr" style="gap:5px"><button id="bCpTake">Copia</button><button id="bCpPut">Incolla</button></div>'+
+   '<label style="flex-direction:row;align-items:center;gap:6px">'+
+    '<input type="checkbox" id="cpMx" style="width:auto"> ribalta a destra e sinistra</label>'+
+   '<label style="flex-direction:row;align-items:center;gap:6px">'+
+    '<input type="checkbox" id="cpMy" style="width:auto"> ribalta sopra e sotto</label>'+
+   '<label style="flex-direction:row;align-items:center;gap:6px">'+
+    '<input type="checkbox" id="cpRep" style="width:auto"> svuota il resto del riquadro</label>'+
+   '<label style="flex-direction:row;align-items:center;gap:6px">'+
+    '<input type="checkbox" id="cpOnly" style="width:auto"> <span id="labCpOnly">solo i ritocchi dei bordi</span></label>'+
+   '<p class="st" id="cpHint" style="font-size:11.5px;margin:2px 0"></p></div>'+
+  '<div class="sbh" id="hEdg">Ritocco</div>'+
+  '<div class="sbg" id="sbEdg">'+
+   '<div class="tr" style="gap:5px">'+
+    '<label style="flex:1">Dalla riga<input id="edR0" type="number" min="1" step="1"></label>'+
+    '<label style="flex:1">alla riga<input id="edR1" type="number" min="1" step="1"></label></div>'+
+   '<div class="tr" style="gap:5px">'+
+    '<label style="flex:1">Dall’ago<input id="edC0" placeholder="S82"></label>'+
+    '<label style="flex:1">all’ago<input id="edC1" placeholder="D82"></label></div>'+
+   '<div class="tr" style="gap:5px"><button id="bEdAdd">Aggiungi</button>'+
+    '<button id="bEdDel">Togli</button><button id="bEdNo">Azzera</button></div>'+
+   '<p class="st" id="edHint" style="font-size:11.5px;margin:2px 0"></p></div>'+
+  '<div class="sbh" id="hTw">Pezzo gemello</div>'+
+  '<div class="sbg" id="sbTw">'+
+   '<label>Ripeti i ritocchi su<select id="edTwin" style="width:100%"></select></label>'+
+   '<label style="flex-direction:row;align-items:center;gap:6px">'+
+    '<input type="checkbox" id="edAuto" style="width:auto" checked> in automatico, mentre ritocco</label>'+
+   '<button id="bEdSync">Ripeti adesso tutti i ritocchi</button>'+
+   '<p class="st" id="twHint" style="font-size:11.5px;margin:2px 0"></p></div>'+
+  sbb('#bEdZ','trash','Azzera i ritocchi')+
   '<div class="sbh" id="hRul">Righello</div>'+sbb('#rlUn','nopoint','Togli il punto')+
   sbb('#rlFl','straight','Raddrizza i tratti')+sbb('#rlCl','trash','Svuota il righello')+
   '<div class="sbh" id="hAre">Motivo</div>'+
@@ -3266,7 +3547,7 @@ function buildChrome(){
   '<div class="sbsep"></div><div class="sbh">Vista</div>'+
   sbb('#zm','zout','Riduci')+sbb('#zp','zin','Ingrandisci')+
   sbb('#bFt','fit','Adatta tutto allo schermo')+sbb('#bFw','fitw','Adatta alla larghezza')+
-  sbb('#bMs','tag','Misure sulle linee')+
+  sbb('#bMs','tag','Misure sulle linee')+sbb('#bRt','edge','Segni dei ritocchi')+
   '<div id="tgFix">'+sbb('#bFx','fix','Fissa in maglie')+'</div>';
 
  $('#pcPop').innerHTML='<div class="sbh" style="padding:2px 2px 6px">Pezzo in lavorazione</div>'+
@@ -3274,9 +3555,11 @@ function buildChrome(){
   '<div class="tr" style="margin-top:6px"><input id="pn" placeholder="Nome del pezzo" style="flex:1"></div>'+
   '<div class="tr" style="margin-top:6px"><button id="pa">+ Nuovo</button><button id="pc">Duplica</button><button id="pd">Elimina</button></div>'+
   '<div class="sbsep"></div>'+
-  '<div class="sbh" style="padding:2px 2px 6px">Cambio campione</div>'+
-  '<label class="mu" style="display:block">Il disegno è fatto con<select id="pgOld" style="width:100%"></select></label>'+
-  '<button id="pgGo" style="margin-top:6px;width:100%">Tieni i centimetri, rifai maglie e righe</button>'+
+  '<div class="sbh" style="padding:2px 2px 6px">Campione di questo pezzo</div>'+
+  '<p class="st" id="pgNow" style="margin:0 0 6px"></p>'+
+  '<label class="mu" style="display:block">Passa al campione<select id="pgNew" style="width:100%"></select></label>'+
+  '<button id="pgGo" style="margin-top:6px;width:100%" title="Le misure in centimetri restano quelle: aghi e righe si rifanno col campione nuovo">Cambia e tieni i centimetri</button>'+
+  '<button id="pgKeep" style="margin-top:5px;width:100%" title="Aghi e righe restano quelli: cambiano le misure in centimetri">Cambia e tieni maglie e righe</button>'+
   '<p class="st" id="pgHint" style="margin:6px 0 0"></p>'+
   '<div class="sbsep"></div>'+
   '<div class="tr"><label class="mu" style="flex:1">Unità<select id="un" style="width:100%"><option value="st">maglie e righe</option><option value="cm">centimetri</option></select></label>'+
@@ -3323,7 +3606,11 @@ function footBoxes(){
   cm1((z.sm/z.sw)*10||0)+' × '+cm1((z.sr/z.sh)*10||0)+'</span></span>'+
   (z.id===L.gid?'<span class="ok">in uso</span>':'<button data-gp="'+z.id+'">Usa</button>')+'</div>').join('');
  if(gp)gp.querySelectorAll('[data-gp]').forEach(b=>b.onclick=()=>{
-  L.gid=b.dataset.gp;A=null;saveL();FB.later();fillG();popTo('#gPop');render()})}
+  L.gid=b.dataset.gp;A=null;sel=null;saveL();FB.later();
+  msg=p().unit==='cm'
+   ?'Campione in uso: «'+gName(L.gid)+'». Il pezzo è in centimetri: le misure restano, maglie e righe si rifanno da sole.'
+   :'Campione in uso: «'+gName(L.gid)+'». Aghi e righe restano quelli e cambiano i centimetri: per tenere invece i centimetri, usa «Cambia e tieni i centimetri» nel riquadro Pezzo.';
+  fill();popTo('#gPop');render()})}
 
 /* ---------- righelli fissi attorno al foglio ---------- */
 const RT=26,RL=40,RB=26,RR=42;
@@ -3413,7 +3700,13 @@ function fold(id,key,on){const e=$(id);e.classList.toggle('min',!!on);
  try{localStorage.setItem(key,on?'1':'0')}catch(x){}
  syncFold()}
 $('#navTog').onclick=()=>fold('#navw','mq-nav',!$('#navw').classList.contains('min'));
-$('#infTog').onclick=()=>fold('#info','mq-inf',!$('#info').classList.contains('min'));
+/* la fascia dei dati ha due memorie: una per quando disegni, una per quando lavori */
+const infKey=()=>mode==='work'?'mq-infw':'mq-inf';
+function infApply(){const e=$('#info');if(!e)return;
+ let v=null;try{v=localStorage.getItem(infKey())}catch(x){}
+ if(v===null)v=mode==='work'?'1':'0';   /* mentre lavori parte chiusa: la riapri con la freccina */
+ e.classList.toggle('min',v==='1');syncFold()}
+$('#infTog').onclick=()=>fold('#info',infKey(),!$('#info').classList.contains('min'));
 try{if(localStorage.getItem('mq-nav')==='1')$('#navw').classList.add('min');
  if(localStorage.getItem('mq-inf')==='1')$('#info').classList.add('min')}catch(x){}
 syncFold();
@@ -3439,6 +3732,26 @@ $('#sbBody').querySelectorAll('[data-t]').forEach(b=>b.onclick=()=>{tool=b.datas
  render()});
 $('#bSub').onclick=()=>{sub=sub?0:1;msg='';render()};
 $('#bMi').onclick=()=>{mir=mir?0:1;msg='';render()};
+/* copia e incolla di un pezzo di disegno */
+$('#bCpTake').onclick=()=>{const c=clipTake();
+ if(!c){msg='Trascina prima un rettangolo sul disegno.';render();return}
+ msg='Preso un riquadro di '+c.w+' maglie × '+c.h+' righe'+
+  (c.nrt?', con dentro '+c.nrt+' maglie ritoccate a mano':'')+
+  '. Puoi cambiare pezzo: resta in mano. Tocca dove vuoi l’angolo in basso a sinistra, poi «Incolla».';
+ render()};
+$('#bCpPut').onclick=()=>{
+ if(!CLIP){msg='Non c’è niente da incollare: prima scegli un riquadro e premi «Copia».';render();return}
+ pushUndo();
+ const n=clipPut(), rep=$('#cpRep')&&$('#cpRep').checked;
+ if(!n&&!rep){UNDO.pop();uiUndo();
+  msg='Lì non è finito niente: il riquadro copiato era vuoto o cade fuori dal foglio.';render();return}
+ const a2=clipAt||{c:0,r:0};
+ sel={kind:'rect',c0:a2.c,c1:a2.c+CLIP.w-1,r0:a2.r,r1:a2.r+CLIP.h-1};
+ msg=(($('#cpOnly')&&$('#cpOnly').checked)?'Rimessi '+nf(n)+' ritocchi a ':'Incollate '+nf(n)+' maglie a ')+cn(a2.c)+', riga '+(a2.r+1)+
+  (($('#cpMx')&&$('#cpMx').checked)?', ribaltate a destra e sinistra':'')+
+  (($('#cpMy')&&$('#cpMy').checked)?', ribaltate sopra e sotto':'')+
+  '. «Annulla» le toglie.';
+ save();fill();render()};
 /* specchio sopra e sotto: l'asse parte da dove sei arrivata col disegno */
 $('#bMv2').onclick=()=>{const q=p(),P=q.pts;
  mirV=mirV?0:1;
@@ -3467,6 +3780,65 @@ function flatten(A,one){if(!A.length)return 0;
 $('#rlFl').onclick=()=>{const q=p();
  if(!flatten(q.ruler,-1)){msg='Nessuna curva da raddrizzare nel righello.';render();return}
  msg='Righello tutto diritto.';save();render()};
+/* ritocco scritto: da riga a riga, da ago ad ago */
+const edGo=act=>{const a=prep(),W=a.W;
+ const v=id=>{const e=$(id);return e?e.value.trim():''};
+ const r0=parseInt(v('#edR0'),10), r1v=v('#edR1');
+ if(!(r0>0)){msg='Scrivi almeno la riga di partenza.';render();return}
+ const r1=r1v?parseInt(r1v,10):r0;
+ if(!(r1>0)){msg='La riga d’arrivo non si capisce.';render();return}
+ const s0=v('#edC0'), s1=v('#edC1');
+ let c0,c1;
+ if(!s0&&!s1){c0=0;c1=W-1}                     /* aghi vuoti: tutta la riga */
+ else{c0=needCol(s0||s1,W);c1=needCol(s1||s0,W);
+  if(c0===null||c1===null){msg='Gli aghi non si capiscono: scrivi per esempio S82, D20, oppure -82.';render();return}}
+ pushUndo();
+ const n=edgeBox(c0,c1,r0-1,r1-1,act);
+ if(!n){applySnap(UNDO.pop());uiUndo();   /* niente è cambiato: rimetto tutto com'era */
+  msg=act==='off'?'Lì non c’erano ritocchi da azzerare.':'Lì era già così: non ho cambiato niente.';
+  render();return}
+ const dove=(r0===r1?'riga '+r0:'righe '+r0+'–'+r1)+
+  (s0||s1?', da '+lab(Math.min(c0,c1)-half())+' a '+lab(Math.max(c0,c1)-half()):', per intero');
+ msg=(act==='add'?'Aggiunte ':act==='rem'?'Tolte ':'Azzerate ')+nf(n)+
+  (n===1?' maglia':' maglie')+' su '+dove+
+  ((mir||mirV)&&act!=='off'?' (specchio acceso: anche dall’altra parte)':'')+'. «Annulla» torna indietro.';
+ save();fill();render()};
+/* pezzi gemelli: il legame vale nei due sensi, così ritocchi da dove ti pare */
+$('#edTwin').onchange=()=>{const q=p(),v=$('#edTwin').value;
+ const vecchio=twinOf(q);
+ if(vecchio&&vecchio.twin===pidOf(q))vecchio.twin='';   /* slego il precedente */
+ q.twin=v||'';
+ if(v){const t=S.ps.find(z=>z!==q&&z.pid===v);
+  if(t){t.twin=pidOf(q);t.twinAuto=q.twinAuto===0?0:1}   /* legame nei due sensi */
+  msg='Pezzi gemelli: «'+esc(q.name||'questo')+'» e «'+esc((t&&t.name)||'l’altro')+
+   '». I ritocchi fatti su uno si ripetono sull’altro, stesso ago e stessa riga. Usa «Ripeti adesso» per allineare quelli già fatti.'}
+ else msg='Pezzi slegati: i ritocchi restano solo su questo pezzo.';
+ save();fill();render()};
+$('#edAuto').onchange=()=>{const q=p(),v=$('#edAuto').checked?1:0;
+ q.twinAuto=v;const t=twinOf(q);if(t)t.twinAuto=v;
+ msg=v?'Da adesso i ritocchi si ripetono da soli sul gemello.'
+  :'Ripetizione automatica spenta: i gemelli restano legati, ma aggiorni col tasto «Ripeti adesso».';
+ save();render()};
+/* una volta sola: porta tutti i ritocchi di questo pezzo sul gemello */
+dbl($('#bEdSync'),()=>{const q=p(),t=twinOf(q);
+ if(!t){msg='Prima scegli il pezzo gemello.';render();return}
+ pushUndo();
+ prep();
+ const lim=twinFit(t),W=S.needles;
+ let n=0;
+ for(let r=0;r<lim.H;r++)for(let c=0;c<W;c++){
+  const a1=(q.add[r]&&q.add[r][c])?1:0, r1=(q.rem[r]&&q.rem[r][c])?1:0;
+  const era=(t.add[r][c]?1:0)|(t.rem[r][c]?2:0), ora=a1?1:(r1?2:0);
+  t.add[r][c]=a1;t.rem[r][c]=r1;
+  if(era!==ora)n++}
+ A=null;
+ msg=n?'Ritocchi ripetuti su «'+esc(t.name||'pezzo')+'»: '+nf(n)+(n===1?' maglia allineata.':' maglie allineate.')
+  :'Era già tutto uguale: non c’era niente da allineare.';
+ if(!n){applySnap(UNDO.pop());uiUndo()}
+ save();fill();render()});
+$('#bEdAdd').onclick=()=>edGo('add');
+$('#bEdDel').onclick=()=>edGo('rem');
+$('#bEdNo').onclick=()=>edGo('off');
 dbl($('#bEdZ'),()=>{const q=p();pushUndo();q.add=[];q.rem=[];A=null;
  msg='Ritocchi azzerati: restano solo le forme.';save();render()});
 $('#bFl').onclick=()=>{const q=p();pushUndo();
@@ -3476,6 +3848,13 @@ $('#bMs').onclick=()=>{showMs=showMs?0:1;
  try{localStorage.setItem('mq-ms',showMs?'1':'0')}catch(x){}
  msg=showMs?'Misure sulle linee accese.':'Misure sulle linee spente.';render()};
 try{if(localStorage.getItem('mq-ms')==='0')showMs=0}catch(x){}
+/* i pallini verde e rosso dei ritocchi si possono spegnere: il ritocco resta */
+$('#bRt').onclick=()=>{showRt=showRt?0:1;
+ try{localStorage.setItem('mq-rt',showRt?'1':'0')}catch(x){}
+ msg=showRt?'Segni dei ritocchi accesi: pallino verde dove hai aggiunto, rosso dove hai tolto.'
+  :'Segni dei ritocchi nascosti: le maglie ritoccate restano, non si vedono più i pallini.';
+ render()};
+try{if(localStorage.getItem('mq-rt')==='0')showRt=0}catch(x){}
 /* inserisce o toglie righe alla quota scelta, oppure aghi alla colonna scelta */
 const rowGo=via=>{const q=p(),cmu=q.unit==='cm';
  const nd=$('#iRowAx')&&$('#iRowAx').value==='n';
@@ -3498,26 +3877,47 @@ const rowGo=via=>{const q=p(),cmu=q.unit==='cm';
   (nd?(both?': metà per lato, il disegno è rimasto centrato.':': quello che stava a destra si è scostato.')
     :': quello che stava sopra si è spostato.');
  save();fill();render()};
-/* cambio campione tenendo ferme le misure in centimetri */
+/* cambio campione: da qui si cambia anche quello in uso, così le due schede
+   dicono sempre la stessa cosa */
+const pgOf=q=>(q.gid&&GS().some(z=>z.id===q.gid))?q.gid:L.gid;   /* con che campione è disegnato */
+const gName=id=>{const g=GS().find(z=>z.id===id);return g?(g.n||'Senza nome'):'—'};
 function pgFill(){
- const sel2=$('#pgOld');if(!sel2)return;
- const q=p(),cmu=q.unit==='cm';
+ const sel2=$('#pgNew');if(!sel2)return;
+ const q=p(),cmu=q.unit==='cm',old=pgOf(q);
  sel2.innerHTML=GS().map(z=>'<option value="'+z.id+'">'+esc(z.n||'Senza nome')+'</option>').join('');
- const want=q.gid&&GS().some(z=>z.id===q.gid)?q.gid:L.gid;
- sel2.value=want;
- sel2.disabled=cmu;$('#pgGo').disabled=cmu;
+ sel2.value=L.gid;
+ $('#pgNow').textContent='Questo pezzo è disegnato con «'+gName(old)+'»'+
+  (old===L.gid?' ed è anche il campione in uso.':'. In uso adesso: «'+gName(L.gid)+'».');
+ const kp=$('#pgKeep');
+ if(kp)kp.hidden=cmu;
+ $('#pgGo').textContent=cmu?'Cambia campione':'Cambia e tieni i centimetri';
  $('#pgHint').textContent=cmu
-  ?'Questo pezzo è già disegnato in centimetri: cambiando campione le misure restano e maglie e righe si rifanno da sole.'
-  :'Dimmi con che campione avevi disegnato: tengo ferme le misure in centimetri e ricalcolo aghi e righe col campione attivo.'}
+  ?'Il pezzo è in centimetri: le misure restano e maglie e righe si rifanno da sole.'
+  :'Il campione in uso vale per tutto l’archivio: gli altri pezzi li riadatti allo stesso modo.'}
+/* passa al campione scelto tenendo ferme le misure in centimetri */
 $('#pgGo').onclick=()=>{
- const og=GS().find(z=>z.id===$('#pgOld').value);
- if(!og){msg='Scegli il campione con cui avevi disegnato.';render();return}
- if(og.id===L.gid){msg='È già il campione attivo: non c’è niente da riadattare.';render();return}
+ const q=p(),old=pgOf(q),nw=$('#pgNew').value;
+ if(!GS().some(z=>z.id===nw)){msg='Scegli il campione a cui passare.';render();return}
+ if(nw===old&&nw===L.gid){msg='È già questo il campione del pezzo: non c’è niente da cambiare.';render();return}
  pushUndo();
- if(!reGauge(og)){UNDO.pop();uiUndo();msg='Non c’è niente da riadattare.';render();return}
- const q=p();
- msg='Disegno riadattato al campione attivo: i centimetri sono rimasti, ora sono '+
-  nf(q.rows)+' righe. Controlla i bordi, qualche maglia può essersi spostata di uno.';
+ const og=GS().find(z=>z.id===old);
+ L.gid=nw;A=null;sel=null;saveL();FB.later();
+ const fatto=q.unit!=='cm'&&og?reGauge(og):0;
+ q.gid=nw;
+ msg=q.unit==='cm'
+  ?'Campione in uso: «'+gName(nw)+'». Il pezzo è in centimetri, le misure restano e maglie e righe si sono rifatte da sole.'
+  :fatto
+   ?'Campione «'+gName(nw)+'»: i centimetri sono rimasti, ora sono '+nf(q.rows)+
+    ' righe. Controlla i bordi, qualche maglia può essersi spostata di uno.'
+   :'Campione «'+gName(nw)+'»: ha la stessa densità di prima, non c’era niente da rifare.';
+ save();fill();render()};
+/* passa al campione scelto lasciando aghi e righe come sono */
+$('#pgKeep').onclick=()=>{
+ const q=p(),nw=$('#pgNew').value;
+ if(!GS().some(z=>z.id===nw)){msg='Scegli il campione a cui passare.';render();return}
+ pushUndo();
+ L.gid=nw;q.gid=nw;A=null;sel=null;saveL();FB.later();
+ msg='Campione «'+gName(nw)+'»: aghi e righe restano quelli, cambiano le misure in centimetri.';
  save();fill();render()};
 $('#bRowIns').onclick=()=>rowGo(0);
 $('#bRowDel').onclick=()=>rowGo(1);
@@ -3598,8 +3998,11 @@ function zoomAt(k,cx,cy){
  const w0=cv.clientWidth||1, h0=cv.clientHeight||1;
  if(cx==null){cx=b.left+pane.clientWidth/2;cy=b.top+pane.clientHeight/2}
  const fx=(cx-b.left+pane.scrollLeft-pL)/w0, fy=(cy-b.top+pane.scrollTop-pT)/h0;
- const Z0=Z;Z=clamp(Z*k,.15,4);
- if(Math.abs(Z-Z0)<1e-6)return;
+ const Z0=Z;let a0;try{a0=prep()}catch(x){a0=null}
+ Z=clamp(Z*k,.15,a0?Math.min(4,zCap(a0)):4);
+ if(Math.abs(Z-Z0)<1e-6){
+  if(k>1&&a0&&Z>=zCap(a0)-1e-6){msg='Più grande di così il foglio non lo reggerebbe: con un pezzo così lungo il tablet smetterebbe di disegnarlo.';render()}
+  return}
  userZoom=1;render();
  const pL2=parseFloat(pane.style.paddingLeft)||0, pT2=parseFloat(pane.style.paddingTop)||0;
  pane.scrollLeft=pL2+fx*(cv.clientWidth||1)-(cx-b.left);
@@ -3631,16 +4034,22 @@ $('#nm').oninput=e=>{S.name=e.target.value;save();fillG()};
 $('#nt').oninput=e=>{S.note=e.target.value;save()};
 $('#mc').onchange=e=>{S.machine=e.target.value;resizeN(MC[S.machine]);save();fill();render()};
 $('#nd').onchange=e=>{resizeN(+e.target.value||S.needles);save();fill();render()};
-$('#gs').onchange=e=>{L.gid=e.target.value;A=null;sel=null;saveL();render()};
+$('#gs').onchange=e=>{L.gid=e.target.value;A=null;sel=null;saveL();FB.later();
+ msg=p().unit==='cm'
+  ?'Campione in uso: «'+gName(L.gid)+'». Il pezzo è in centimetri: le misure restano, maglie e righe si rifanno da sole.'
+  :'Campione in uso: «'+gName(L.gid)+'». Aghi e righe restano quelli e cambiano i centimetri: per tenere invece i centimetri, usa «Cambia e tieni i centimetri» nel riquadro Pezzo.';
+ fill();render()};
 
 $('#ps').onchange=e=>{S.cur=+e.target.value;A=null;selP=-1;side=0;sel=null;msg='';rSel=-1;bHot=-1;save();fill();render()};
 $('#pn').oninput=e=>{p().name=e.target.value;save();const o=$('#ps').options[S.cur];if(o)o.textContent=e.target.value||'Pezzo '+(S.cur+1)};
-$('#pa').onclick=()=>{S.ps.push(np('Pezzo '+(S.ps.length+1)));S.cur=S.ps.length-1;A=null;selP=-1;side=0;sel=null;save();fill();render()};
+$('#pa').onclick=()=>{const n=np('Pezzo '+(S.ps.length+1));n.gid=L.gid;
+ S.ps.push(n);S.cur=S.ps.length-1;A=null;selP=-1;side=0;sel=null;save();fill();render()};
 $('#pc').onclick=()=>{
  /* il duplicato va riportato dalle stringhe salvate agli array veri,
     tutti quanti: le maschere, il pennello e i due strati di ritocco */
  const n=fixPc(JSON.parse(encProj(S)).ps[S.cur],S.needles);
  n.name=(p().name||'Pezzo')+' (copia)';
+ n.pid=uid();n.twin='';   /* la copia è un pezzo suo: niente gemello ereditato */
  S.ps.push(n);S.cur=S.ps.length-1;A=null;selP=-1;side=0;sel=null;msg='Pezzo duplicato.';
  save();fill();render()};
 dbl($('#pd'),()=>{if(S.ps.length<2)return;S.ps.splice(S.cur,1);S.cur=0;A=null;selP=-1;side=0;sel=null;save();fill();render()});
