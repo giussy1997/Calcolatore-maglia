@@ -459,14 +459,14 @@ nav button{flex:1 1 90px;padding:10px 6px;font-weight:700}
 </div>
 </div>
 <div class="sy" id="sy"></div>
-<div class="tabs"><button data-f="proj">Progetti <span id="cP">0</span></button><button data-f="gauge">Campioni <span id="cG">0</span></button><button data-f="sch">Schede <span id="cS">0</span></button></div>
+<div class="tabs"><button data-f="proj">Progetti <span id="cP">0</span></button><button data-f="gauge">Campioni <span id="cG">0</span></button><button data-f="sch">Schede <span id="cS">0</span></button><button data-f="ago">Aghi <span id="cA">0</span></button></div>
 <div class="tr" style="margin:10px 0">
 <input id="hmQ" placeholder="Cerca per nome o note..." style="flex:1 1 220px">
 <select id="hmSort"><option value="up">Ultima modifica</option><option value="name">Nome A–Z</option><option value="old">Più vecchi</option></select>
 </div>
 <div id="hmGrid" class="cards"></div>
 <div id="hmEmpty" class="empty"></div>
-<div class="tr" style="margin:16px 0 8px"><button id="hmNewP" class="big2">Crea progetto</button><button id="hmNewG" class="big2 alt">Nuovo campione</button><button id="hmNewS" class="big2 alt">Nuova scheda</button></div>
+<div class="tr" style="margin:16px 0 8px"><button id="hmNewP" class="big2">Crea progetto</button><button id="hmNewG" class="big2 alt">Nuovo campione</button><button id="hmNewS" class="big2 alt">Nuova scheda</button><button id="hmNewA" class="big2 alt">Nuova selezione aghi</button></div>
 </div>
 
 <div class="vw" id="vSet">
@@ -671,6 +671,38 @@ nav button{flex:1 1 90px;padding:10px 6px;font-weight:700}
  <div class="mft"><button id="imOk" class="on">Usa questo motivo</button><button id="imX">Annulla</button>
   <span class="st" id="imWarn"></span></div>
 </div></div>
+
+<!-- ============ selezione manuale degli aghi ============ -->
+<div class="vw" id="vAgo">
+ <div class="hb"><div class="hbt"><button id="agBack">← Archivio</button></div>
+  <div class="tr"><button id="agDup">Duplica</button><button id="agDel">Elimina</button></div></div>
+ <input id="agName" class="t" placeholder="Nome del disegno">
+ <input id="agNote" class="n" placeholder="Note: filato, macchina, prove fatte">
+ <div class="navw"><nav><button data-am="draw">Disegna</button><button data-am="work">Lavora</button></nav></div>
+ <div class="tb ag-d">
+  <label class="ag-l">Aghi a sinistra (S)<input id="agL" type="number" min="1" max="100"></label>
+  <label class="ag-l">Aghi a destra (D)<input id="agR" type="number" min="1" max="100"></label>
+  <label class="ag-l">Righe<input id="agRows" type="number" min="1" max="400"></label>
+  <label class="ag-l">Come disegni<select id="agMd"><option value="free">Libero, ago per ago</option><option value="btn">12 pulsanti + rotellina zone</option></select></label>
+  <label class="ag-l">Campione<select id="agG"></select></label>
+  <label class="ag-l">Macchina<select id="agM"></select></label>
+  <label class="ag-l">Filo di fondo<select id="agC1"></select></label>
+  <label class="ag-l">Filo di contrasto<select id="agC2"></select></label>
+  <div class="tr"><button id="agInv">Inverti colori</button><button id="agGe">Scheda del campione</button></div>
+ </div>
+ <div class="tb ag-d">
+  <div class="tr"><button id="agUn">Annulla</button><button id="agMi">Specchia a destra e sinistra</button><button id="agCl">Svuota</button></div>
+  <label class="ag-l">Rotellina su tutte le righe<select id="agZ"><option value="-1">scegli…</option><option value="0">tutto il letto</option></select></label>
+ </div>
+ <div class="ht" id="agHt"></div>
+ <div class="ag-d"><h3>Disegno</h3><div class="ag-wrap" id="agEw"><canvas id="agEd"></canvas></div></div>
+ <div id="agWp"></div>
+ <h3>Come esce sul tessuto</h3>
+ <div class="ag-wrap" id="agPw"><canvas id="agPv"></canvas></div>
+ <div class="ms" id="agMs"></div>
+ <div class="ag-d"><h3>Aghi da selezionare, riga per riga</h3><div class="pre" id="agTx" style="max-height:240px;overflow:auto"></div></div>
+ <div id="agBar" hidden><button id="agBm" aria-label="Disfa una riga">−</button><div id="agCnt"></div><button id="agBp" aria-label="Segna una riga fatta">+</button></div>
+</div>
 
 <div id="kprt"></div>
 
@@ -1681,6 +1713,215 @@ window.__SCH={fixCard,create:nsc,thumb:thumbURL,open:openCard,
 
 })();
 </script>
+<style>
+.ag-l{display:flex;flex-direction:column;gap:3px;font-size:11.5px;color:var(--mut);min-width:0}
+.ag-l input[type=number]{width:78px}
+.ag-wrap{overflow:auto;background:var(--card);border:1px solid var(--line);border-radius:12px;max-height:62vh;margin:8px 0;-webkit-overflow-scrolling:touch}
+#agEd{touch-action:none;display:block;margin:auto}#agPv{display:block;margin:auto}
+#vAgo.aw .ag-d{display:none}
+#vAgo.aw{padding-bottom:110px}
+#agBar{position:fixed;left:0;right:0;bottom:0;background:var(--card);border-top:1px solid var(--line);padding:8px 16px calc(8px + env(safe-area-inset-bottom,0px));display:flex;gap:12px;align-items:center;justify-content:center;z-index:20}
+#agBar button{font-size:30px;width:86px;height:58px;border-width:2px;border-color:var(--ink)}
+#agCnt{font:700 20px var(--serif);min-width:140px;text-align:center;font-variant-numeric:tabular-nums}
+</style>
+<script>
+(()=>{
+const $=s=>document.querySelector(s),MQ=()=>window.__MQ;
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v)),mod=(a,n)=>((a%n)+n)%n;
+const f1=n=>n.toLocaleString('it-IT',{minimumFractionDigits:1,maximumFractionDigits:1});
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6),now=()=>Date.now();
+const MCH=['Toyota KS787','Silver Reed SK280','Silver Reed SK155','Brother KH840'];
+const YN=['#fdfdfd','#c0392b','#1d77b8','#3d9a2b','#d8801f','#7a49b0','#17977f','#f0c419','#2b2f3a','#b8b3a8'];
+const YL=['ecru','rosso','blu','verde','arancio','viola','petrolio','giallo','antracite','grigio'];
+const NB=200,ZW=24;      /* letto da 200 aghi; zone della rotellina da 24 */
+let St=null,work=0,UN=[],drag=null,tp=null,G={},P2={MT:0,ch:1,H:1},msg='';
+const lab=u=>u<0?'S'+(-u):'D'+(u+1);
+const zr=z=>[(z-1)*ZW,Math.min(NB-1,z*ZW-1)];
+const zt=z=>{if(!z)return'tutto il letto';const q=zr(z);return'zona '+z+' ('+lab(q[0]-100)+'–'+lab(q[1]-100)+')'};
+
+/* ---- modello: tutto in stringhe di 0 e 1, così l'archivio condiviso lo porta com'è ---- */
+function create(n){const c={id:uid(),n:n||'',note:'',md:'free',L:36,R:36,rows:24,c1:0,c2:1,inv:0,mach:MCH[0],cr:now(),up:now()};return fix(c)}
+function fix(c){
+ if(!c||!c.id)return null;
+ c.md=c.md==='btn'?'btn':'free';
+ c.L=clamp((c.L|0)||36,1,100);c.R=clamp((c.R|0)||36,1,100);c.rows=clamp((c.rows|0)||24,1,400);
+ const bs=(a,w)=>Array.from({length:c.rows},(_,i)=>{const s=String(a&&a[i]||'');let o='';for(let k=0;k<w;k++)o+=s.charAt(k)==='1'?'1':'0';return o});
+ c.free=bs(c.free,NB);c.btn=bs(c.btn,12);
+ c.zone=Array.from({length:c.rows},(_,i)=>clamp((c.zone&&c.zone[i])|0,0,9));
+ c.c1=clamp(c.c1|0,0,9);c.c2=clamp(c.c2|0,0,9);c.inv=c.inv?1:0;c.mach=MCH.includes(c.mach)?c.mach:MCH[0];
+ c.n=c.n||'';c.note=c.note||'';c.up=c.up||now();c.cr=c.cr||now();return c}
+const gf=(r,i)=>St.free[r].charCodeAt(i)===49,gb=(r,k)=>St.btn[r].charCodeAt(k)===49;
+const sf=(r,i,v)=>{const s=St.free[r];St.free[r]=s.slice(0,i)+(v?'1':'0')+s.slice(i+1)};
+const sbt=(r,k,v)=>{const s=St.btn[r];St.btn[r]=s.slice(0,k)+(v?'1':'0')+s.slice(k+1)};
+/* ago selezionato alla riga r, all'ago u (0 = D1, negativi a sinistra) */
+const sel=(r,u)=>{const i=u+100;if(St.md==='free')return gf(r,i);const z=St.zone[r];
+ if(z&&(i<(z-1)*ZW||i>=z*ZW))return false;return gb(r,mod(i,12))};
+const GSR=()=>{const g=MQ().gauge();return{s:g.s,r:g.r}};
+const dkey=()=>'ago|'+St.id;
+const DONE=()=>clamp(MQ().L.counters[dkey()]|0,0,St.rows);
+const setDONE=n=>{MQ().L.counters[dkey()]=clamp(n|0,0,St.rows);MQ().save()};
+const touch=()=>{St.up=now();MQ().save();MQ().later()};
+const snap=()=>JSON.stringify({f:St.free,b:St.btn,z:St.zone});
+function push(){UN.push(snap());if(UN.length>40)UN.shift()}
+const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+function ctx(c,w,h){const d=clamp(Math.min(devicePixelRatio||1,2,Math.sqrt(11e6/Math.max(1,w*h)),4096/Math.max(w,h,1)),.3,2);c.width=Math.round(w*d);c.height=Math.round(h*d);c.style.width=w+'px';c.style.height=h+'px';const x=c.getContext('2d');x.setTransform(d,0,0,d,0,0);return x}
+const bt=r=>Array.from(St.btn[r]).map((v,i)=>v==='1'?i+1:0).filter(Boolean);
+function runs(r){const o=[];let a=null,p=null;const fl=()=>{if(a!==null)o.push(a===p?lab(a):lab(a)+'–'+lab(p));a=null};
+ for(let u=-St.L;u<St.R;u++){if(sel(r,u)){if(a===null)a=u;p=u}else fl()}fl();return o}
+const count=r=>{let n=0;for(let u=-St.L;u<St.R;u++)if(sel(r,u))n++;return n};
+
+/* ---- disegno ---- */
+function edit(){
+ const fr=St.md==='free',n=fr?St.L+St.R:12,ML=44,MT=22,ZD=fr?0:64,H=St.rows;
+ const avail=Math.max(200,$('#agEw').clientWidth-ML-8-ZD);
+ const cw=fr?clamp(Math.floor(avail/n),9,26):clamp(Math.floor(avail/12),20,40),ch=Math.min(cw,28);
+ const x=ctx($('#agEd'),ML+n*cw+8+ZD,MT+H*ch+6);G={ML,MT,cw,ch,n,fr};
+ const ink=css('--ink'),card=css('--card'),line=css('--line'),mut=css('--mut'),acc=css('--acc');
+ x.fillStyle=card;x.fillRect(0,0,9999,9999);x.font='10px DM Sans,system-ui,sans-serif';x.textBaseline='middle';
+ for(let r=0;r<H;r++)for(let k=0;k<n;k++){const on=fr?gf(r,k-St.L+100):gb(r,k),X=ML+k*cw,Y=MT+(H-1-r)*ch;
+  x.fillStyle=on?ink:card;x.fillRect(X,Y,cw,ch);x.strokeStyle=line;x.strokeRect(X+.5,Y+.5,cw,ch)}
+ x.fillStyle=mut;x.textAlign='right';
+ for(let r=0;r<H;r++)if(ch>=11||(r+1)%5===0)x.fillText(r+1,ML-6,MT+(H-1-r)*ch+ch/2);
+ x.textAlign='center';
+ for(let k=0;k<n;k++){const u=k-St.L;
+  if(!fr)x.fillText(String(k+1),ML+k*cw+cw/2,MT-10);
+  else if(cw>=16||k===0||k===n-1||((u<0?-u:u+1)%5===0))x.fillText(lab(u),ML+k*cw+cw/2,MT-10)}
+ if(fr){x.lineWidth=1.6;x.strokeStyle=acc;
+  for(let u=-St.L;u<=St.R;u++){if((u+100)%12&&u!==0)continue;const X=ML+(u+St.L)*cw;x.globalAlpha=u===0?1:.45;x.beginPath();x.moveTo(X,MT);x.lineTo(X,MT+H*ch);x.stroke()}
+  x.globalAlpha=1}
+ x.lineWidth=1;
+ if(!fr){x.fillStyle=mut;x.fillText('zona',ML+n*cw+32,MT-10);
+  for(let r=0;r<H;r++){const Y=MT+(H-1-r)*ch,z=St.zone[r];x.fillStyle=z?acc:card;x.fillRect(ML+n*cw+6,Y,52,ch);x.strokeStyle=line;x.strokeRect(ML+n*cw+6.5,Y+.5,52,ch);x.fillStyle=z?card:mut;x.fillText(z?String(z):'tutto',ML+n*cw+32,Y+ch/2)}}}
+function prev(){
+ const n=St.L+St.R,H=St.rows,ML=40,MT=20,q=GSR(),asp=q.s/q.r,avail=Math.max(200,$('#agPw').clientWidth-ML-8);
+ const cw=clamp(Math.floor(avail/n*10)/10,2,16),ch=cw*asp,x=ctx($('#agPv'),ML+n*cw+8,MT+H*ch+6);
+ const a=St.inv?St.c2:St.c1,b=St.inv?St.c1:St.c2;
+ x.fillStyle=css('--card');x.fillRect(0,0,9999,9999);
+ x.fillStyle=YN[a];x.fillRect(ML,MT,n*cw,H*ch);x.fillStyle=YN[b];
+ for(let r=0;r<H;r++)for(let k=0;k<n;k++)if(sel(r,k-St.L))x.fillRect(ML+k*cw,MT+(H-1-r)*ch,cw+.5,ch+.5);
+ P2={MT,ch,H};
+ if(work){const d=DONE();x.fillStyle='rgba(29,39,66,.36)';for(let r=0;r<d;r++)x.fillRect(ML,MT+(H-1-r)*ch,n*cw,ch);
+  if(d<H){const Y=MT+(H-1-d)*ch;x.fillStyle='rgba(43,76,201,.2)';x.fillRect(ML,Y,n*cw,ch);x.strokeStyle='#2b4cc9';x.lineWidth=2.5;x.strokeRect(ML,Y,n*cw,ch)}}
+ x.strokeStyle=css('--acc');x.lineWidth=1.6;const z=ML+St.L*cw;x.beginPath();x.moveTo(z,MT-4);x.lineTo(z,MT+H*ch);x.stroke();
+ x.fillStyle=css('--mut');x.font='10px DM Sans,system-ui,sans-serif';x.textAlign='center';x.textBaseline='alphabetic';
+ for(let k=0;k<=n;k++){const u=k-St.L,m=u<0?-u:u;if(u===0||m%10===0)x.fillText(u===0?'0':(u<0?'S'+m:'D'+m),ML+k*cw,MT-9)}
+ x.textAlign='right';x.textBaseline='middle';
+ for(let r=4;r<H;r+=5)x.fillText(r+1,ML-5,MT+(H-1-r)*ch+ch/2);
+ const cm=(St.L+St.R)*10/q.s,hh=H*10/q.r;
+ $('#agMs').innerHTML='<div class="mt"><b>Sul tessuto</b> col campione '+f1(q.s)+' × '+f1(q.r)+' ogni 10 cm</div>'+
+  [[St.L+St.R,'aghi in lavoro'],[f1(cm)+' cm','larghezza'],[H,'righe'],[f1(hh)+' cm','altezza'],['S'+St.L+' ↔ D'+St.R,'estremi']]
+  .map(v=>'<div class="mi"><b>'+v[0]+'</b><span>'+v[1]+'</span></div>').join('')}
+function rowTxt(r){const o=runs(r);let s='riga '+String(r+1).padStart(3,' ')+': ';
+ if(St.md==='btn')s+='pulsanti ['+bt(r).join(' ')+'] '+zt(St.zone[r])+'  ';
+ return s+(o.length?o.join(', '):'—')}
+function rel(a,b){const t=[];
+ if(St.md==='btn'){const x=bt(a),y=bt(b),ad=y.filter(v=>!x.includes(v)),rm=x.filter(v=>!y.includes(v));
+  if(ad.length)t.push('premi i pulsanti '+ad.join(', '));if(rm.length)t.push('rilascia '+rm.join(', '));
+  if(St.zone[a]!==St.zone[b])t.push('rotellina su '+zt(St.zone[b]))}
+ else{let ad=0,rm=0;for(let u=-St.L;u<St.R;u++){const p=sel(a,u),q=sel(b,u);if(!p&&q)ad++;if(p&&!q)rm++}
+  if(ad)t.push(ad+(ad===1?' ago in più':' aghi in più'));if(rm)t.push(rm+(rm===1?' ago in meno':' aghi in meno'))}
+ return t.length?t.join(' · '):'niente cambia'}
+const ln=t=>'<div class="ln nt">'+t+'</div>';
+function wp(){const el=$('#agWp'),bar=$('#agBar');bar.hidden=!work;
+ if(!work){el.innerHTML='';return}
+ const H=St.rows,d=DONE(),fin=d>=H,r=Math.min(d,H-1);$('#agCnt').textContent='fatte '+d+' / '+H;
+ let h;
+ if(fin)h='<div class="fr"><b class="big">Disegno finito</b></div>';
+ else{const ru=runs(r);
+  h='<div class="fr"><div class="rn"><span>Riga</span><b>'+(r+1)+'</b></div><div><div class="mm">'+count(r)+' aghi da mettere in lavoro</div><div class="mu">su '+(St.L+St.R)+' in uso, da S'+St.L+' a D'+St.R+'</div></div></div>';
+  if(St.md==='btn')h+=ln('Pulsanti: <b>'+(bt(r).join(' ')||'nessuno')+'</b> · rotellina: <b>'+zt(St.zone[r])+'</b>');
+  h+=ln('Aghi da mettere in lavoro: <b>'+(ru.length?ru.join(', '):'nessuno')+'</b>');
+  if(r>0)h+=ln('Rispetto alla riga '+r+': '+rel(r-1,r));
+  if(r+1<H)h+=ln('Alla riga '+(r+2)+': '+rel(r,r+1))}
+ h+='<div class="tr" style="margin:8px 0"><button id="agRz">Azzera il contarighe</button></div>';
+ el.innerHTML=h;$('#agRz').onclick=()=>{setDONE(0);render()};
+ const p=$('#agPw');p.scrollTop=P2.MT+(P2.H-1-Math.min(d,H-1))*P2.ch-p.clientHeight/2}
+function ui(){
+ $('#vAgo').classList.toggle('aw',!!work);
+ document.querySelectorAll('#vAgo [data-am]').forEach(b=>b.classList.toggle('on',(b.dataset.am==='work')===!!work));
+ const set=(id,v)=>{const e=$(id);if(e&&document.activeElement!==e)e.value=v};
+ set('#agName',St.n);set('#agNote',St.note);set('#agL',St.L);set('#agR',St.R);set('#agRows',St.rows);set('#agMd',St.md);
+ const gs=MQ().gauges(),g=MQ().gauge(),q=GSR();
+ $('#agG').innerHTML=gs.map(z=>'<option value="'+z.id+'"'+(z.id===MQ().gaugeId()?' selected':'')+'>'+(z.n||'Senza nome').replace(/[<>&"]/g,'')+' · '+f1((z.sm/z.sw)*10||0)+' × '+f1((z.sr/z.sh)*10||0)+'</option>').join('');
+ $('#agM').innerHTML=MCH.map(m=>'<option'+(m===St.mach?' selected':'')+'>'+m+'</option>').join('');
+ ['#agC1','#agC2'].forEach((id,i)=>$(id).innerHTML=YL.map((t,k)=>'<option value="'+k+'"'+((i?St.c2:St.c1)===k?' selected':'')+'>'+t+'</option>').join(''));
+ $('#agMi').disabled=St.md!=='free';$('#agUn').disabled=!UN.length;$('#agInv').classList.toggle('on',!!St.inv);
+ const z=$('#agZ');if(!z.options[2]){for(let i=1;i<=9;i++){const o=document.createElement('option');o.value=i;o.textContent='zona '+i+' ('+(i===9?'8':'24')+' aghi)';z.appendChild(o)}}
+ $('#agHt').textContent=msg||(St.md==='free'
+  ?'Ogni quadretto è un ago. Le righe blu chiare segnano gruppi di 12 aghi contando dall’estremo sinistro del letto; quella marcata è lo zero.'
+  :'Ogni colonna è un pulsante e seleziona un ago ogni 12 lungo il letto, dal bordo sinistro. A destra imposti per ogni riga la zona della rotellina, da 24 aghi: toccala per cambiarla.')}
+function render(){if(!St)return;ui();edit();prev();wp();
+ $('#agTx').textContent=Array.from({length:St.rows},(_,r)=>rowTxt(r)).reverse().join('\n')}
+
+/* ---- interazione ---- */
+const cv=$('#agEd');
+function pos(e){const b=cv.getBoundingClientRect(),cx=e.clientX-b.left,cy=e.clientY-b.top;
+ return{cx,k:Math.floor((cx-G.ML)/G.cw),r:St.rows-1-Math.floor((cy-G.MT)/G.ch)}}
+const cur=p=>G.fr?gf(p.r,p.k-St.L+100):gb(p.r,p.k);
+function paintC(p,v){if(p.k<0||p.k>=G.n||p.r<0||p.r>=St.rows)return 0;if(G.fr)sf(p.r,p.k-St.L+100,v);else sbt(p.r,p.k,v);return 1}
+function invRow(r){
+ if(G.fr){let on=false;for(let u=-St.L;u<St.R;u++)if(gf(r,u+100)){on=true;break}
+  const s=St.free[r].split('');for(let u=-St.L;u<St.R;u++)s[u+100]=on?'0':'1';St.free[r]=s.join('')}
+ else St.btn[r]=(St.btn[r].indexOf('1')>=0?'0':'1').repeat(12)}
+function side(p){      /* margine dei numeri di riga o colonna della rotellina */
+ if(p.r<0||p.r>=St.rows)return 1;
+ if(p.cx<G.ML){push();invRow(p.r);return 1}
+ if(!G.fr&&p.k>=G.n&&p.cx<G.ML+G.n*G.cw+64){push();St.zone[p.r]=(St.zone[p.r]+1)%10;return 1}
+ return 0}
+/* col dito si sposta il foglio (e un tocco secco segna l'ago); mouse e penna trascinano */
+cv.addEventListener('pointerdown',e=>{if(!G.cw||!St)return;const p=pos(e);
+ if(e.pointerType==='touch'){tp={x:e.clientX,y:e.clientY,p};return}
+ if(side(p)){touch();render();return}
+ if(p.k<0||p.k>=G.n)return;
+ push();const v=cur(p)?0:1;drag=v;paintC(p,v);try{cv.setPointerCapture(e.pointerId)}catch(x){}touch();render()});
+cv.addEventListener('pointermove',e=>{if(drag===null||e.pointerType==='touch'||!St)return;if(paintC(pos(e),drag)){touch();render()}});
+addEventListener('pointerup',()=>{drag=null});
+cv.addEventListener('pointerup',e=>{if(e.pointerType!=='touch'||!tp)return;const t=tp;tp=null;
+ if(Math.hypot(e.clientX-t.x,e.clientY-t.y)>8)return;
+ if(side(t.p)){touch();render();return}
+ if(t.p.k<0||t.p.k>=G.n)return;push();paintC(t.p,cur(t.p)?0:1);touch();render()});
+
+function open(id){const L=MQ().L;const c=(L.ago||[]).find(z=>z.id===id&&!z.del);if(!c)return 0;
+ St=c;UN=[];msg='';work=0;if(MQ().touch)MQ().touch($('#agEw'),()=>{});render();return 1}
+const chg=(f)=>{push();f();touch();render()};
+const num=(id,k,a,b)=>$(id).onchange=e=>{const v=Math.round(parseFloat(e.target.value));if(!isFinite(v))return;
+ chg(()=>{St[k]=clamp(v,a,b);fix(St)})};
+num('#agL','L',1,100);num('#agR','R',1,100);num('#agRows','rows',1,400);
+$('#agMd').onchange=e=>{St.md=e.target.value==='btn'?'btn':'free';msg='';touch();render()};
+$('#agG').onchange=e=>{MQ().useGauge(e.target.value);render()};
+$('#agGe').onclick=()=>MQ().openGauge(MQ().gaugeId());
+$('#agM').onchange=e=>{St.mach=e.target.value;touch();render()};
+$('#agC1').onchange=e=>{St.c1=+e.target.value;touch();render()};
+$('#agC2').onchange=e=>{St.c2=+e.target.value;touch();render()};
+$('#agInv').onclick=()=>{St.inv=St.inv?0:1;touch();render()};
+$('#agName').oninput=e=>{St.n=e.target.value;touch()};
+$('#agNote').oninput=e=>{St.note=e.target.value;touch()};
+$('#agUn').onclick=()=>{if(!UN.length)return;const o=JSON.parse(UN.pop());St.rows=o.f.length;St.free=o.f;St.btn=o.b;St.zone=o.z;fix(St);touch();render()};
+$('#agCl').onclick=()=>chg(()=>{St.free=St.free.map(()=> '0'.repeat(NB));St.btn=St.btn.map(()=> '0'.repeat(12));St.zone=St.zone.map(()=>0)});
+$('#agMi').onclick=()=>chg(()=>{St.free=St.free.map(s=>s.split('').reverse().join(''))});
+$('#agZ').onchange=e=>{const v=+e.target.value;e.target.value='-1';if(v<0)return;chg(()=>{St.zone=St.zone.map(()=>v)})};
+document.querySelectorAll('#vAgo [data-am]').forEach(b=>b.onclick=()=>{work=b.dataset.am==='work'?1:0;scrollTo(0,0);render()});
+$('#agBp').onclick=()=>{if(DONE()<St.rows){setDONE(DONE()+1);render()}};
+$('#agBm').onclick=()=>{if(DONE()>0){setDONE(DONE()-1);render()}};
+$('#agBack').onclick=()=>MQ().go('home');
+$('#agDup').onclick=()=>{const c=JSON.parse(JSON.stringify(St));c.id=uid();c.n=(St.n||'Disegno')+' (copia)';c.cr=c.up=now();
+ const L=MQ().L;L.ago.push(fix(c));MQ().save();MQ().later();open(c.id)};
+/* lapide, non cancellazione: così sparisce anche sull'altro dispositivo */
+$('#agDel').onclick=()=>{const L=MQ().L,i=L.ago.findIndex(z=>z.id===St.id);
+ if(i>=0)L.ago[i]={id:St.id,del:1,up:now()};delete L.counters[dkey()];St=null;MQ().save();MQ().later();MQ().go('home')};
+addEventListener('resize',()=>{if(St&&$('#vAgo').classList.contains('on'))render()});
+
+function thumb(c,px){try{const w=px||168,n=c.L+c.R,cw=w/n,q=GSR(),ch=cw*q.s/q.r,h=Math.max(40,Math.min(Math.round(w*.7),Math.round(c.rows*ch)));
+ const cn=document.createElement('canvas');cn.width=w;cn.height=h;const x=cn.getContext('2d');if(!x)return'';
+ const s0=St;St=c;x.fillStyle=YN[c.inv?c.c2:c.c1];x.fillRect(0,0,w,h);x.fillStyle=YN[c.inv?c.c1:c.c2];
+ for(let r=0;r<c.rows&&r*ch<h;r++)for(let k=0;k<n;k++)if(sel(r,k-c.L))x.fillRect(k*cw,h-(r+1)*ch,cw+.5,ch+.5);
+ St=s0;return cn.toDataURL('image/png')}catch(e){return''}}
+window.__AGO={fix,create,thumb,open,show(){if(St)render()},
+ alive(){return !!(St&&((MQ().L.ago)||[]).some(z=>z.id===St.id&&!z.del))},
+ name(c){return c.n||''},
+ sub(c){return(c.md==='btn'?'12 pulsanti':'Libero')+' · S'+c.L+'–D'+c.R+' · '+c.rows+' righe'}};
+})();
+</script>
 <script>
 (()=>{
 const $=s=>document.querySelector(s), K3='maglia-quadretti-v3', K2='maglia-quadretti-v2', K1='maglia-contagiri-v1';
@@ -1812,6 +2053,7 @@ function fixL(j){
  j.counters=j.counters||{}; j.pushed=j.pushed||{}; j.done=j.done||{};
  /* le schede perforate: la messa in regola la fa il loro modulo */
  j.cards=(j.cards||[]).map(c=>c&&c.del?c:(window.__SCH?__SCH.fixCard(c):c)).filter(Boolean);
+ j.ago=(j.ago||[]).map(c=>c&&c.del?c:(window.__AGO?__AGO.fix(c):c)).filter(Boolean);
  j.fb=Object.assign({key:'',pid:'',em:'',pw:'',auto:0},j.fb||{});
  if(!j.fb.key)j.fb.key=FBD.key;
  if(!j.fb.pid)j.fb.pid=FBD.pid;
@@ -4111,11 +4353,12 @@ function repaint(){
 function scrollBottom(){const w=$('#cvw');if(!w)return;w.scrollTop=w.scrollHeight;
  w.scrollLeft=(w.scrollWidth-w.clientWidth)/2;rulers()}
 function go(v){view=v;
- ['vLock','vHome','vSet','vGauge','vProj','vSch'].forEach(k=>$('#'+k).classList.toggle('on','v'+v.charAt(0).toUpperCase()+v.slice(1)===k));
+ ['vLock','vHome','vSet','vGauge','vProj','vSch','vAgo'].forEach(k=>$('#'+k).classList.toggle('on','v'+v.charAt(0).toUpperCase()+v.slice(1)===k));
  if(v==='home'){homePanel();syBar()}
  if(v==='set'){setPanel();fbPanel();syBar()}
  if(v==='gauge'){ggFill()}
  if(v==='sch'&&window.__SCH)__SCH.show();
+ if(v==='ago'&&window.__AGO)__AGO.show();
  if(v==='proj'){fill();applyFit();render();requestAnimationFrame(()=>{mode==='work'?center():scrollBottom()})}
  scrollTo(0,0)}
 
@@ -4195,6 +4438,7 @@ function thumbOf(z,px){
 
 /* ---------- schermata iniziale ---------- */
 const CRD=()=>(L.cards||[]).filter(z=>z&&!z.del);
+const AGO=()=>(L.ago||[]).filter(z=>z&&!z.del);
 /* chiaro o scuro: è una scelta del dispositivo, non dell'archivio condiviso */
 const THN={auto:'Tema: auto',light:'Tema: chiaro',dark:'Tema: scuro'};
 function themeGet(){try{const t=localStorage.getItem('mq-theme');return THN[t]?t:'auto'}catch(e){return 'auto'}}
@@ -4217,7 +4461,7 @@ $('#hmTheme').onclick=()=>{const t=themeGet();
 function homePanel(){
  themeApply();
  const P=PRv(),G=GSv(),C=CRD();
- $('#cP').textContent=P.length;$('#cG').textContent=G.length;$('#cS').textContent=C.length;
+ $('#cP').textContent=P.length;$('#cG').textContent=G.length;$('#cS').textContent=C.length;$('#cA').textContent=AGO().length;
  $('#hmGrid').style.setProperty('--cw',hsize+'px');
  $('#hmGrid').className='cards'+(hview==='list'?' list':'');
  $('#vwGrid').classList.toggle('on',hview==='grid');
@@ -4230,7 +4474,7 @@ function homePanel(){
   ? (nameOf(x)||'').localeCompare(nameOf(y)||'','it')
   : hsort==='old' ? (x.cr||x.up||0)-(y.cr||y.up||0) : (y.up||0)-(x.up||0));
  const hit=z=>!q||((nameOf(z)+' '+(z.note||'')).toLowerCase().includes(q));
- const items=srt((folder==='proj'?P:folder==='sch'?C:G).filter(hit));
+ const items=srt((folder==='proj'?P:folder==='sch'?C:folder==='ago'?AGO():G).filter(hit));
  const px=hview==='list'?96:Math.round(hsize*1.6);
  $('#hmGrid').innerHTML=items.map(z=>{
   if(folder==='proj'){
@@ -4239,6 +4483,12 @@ function homePanel(){
     '<span class="ic fit">'+(t?'<img src="'+t+'" alt="">':'<span class="ph">disegno<br>non ancora<br>iniziato</span>')+'</span>'+
     '<span class="gr"><b>'+esc(z.name||'Senza nome')+'</b>'+
     '<span class="sub">'+np2+(np2===1?' pezzo':' pezzi')+' · '+z.needles+' aghi<br>'+dstr(z.up||z.cr||now())+'</span></span></button>'}
+  if(folder==='ago'){
+   const t=window.__AGO?__AGO.thumb(z,px):'';
+   return '<button class="card" data-oa="'+z.id+'">'+
+    '<span class="ic fit">'+(t?'<img src="'+t+'" alt="">':'<span class="ph">disegno<br>vuoto</span>')+'</span>'+
+    '<span class="gr"><b>'+esc(z.n||'Senza nome')+'</b>'+
+    '<span class="sub">'+(window.__AGO?esc(__AGO.sub(z)):'')+'<br>'+dstr(z.up||z.cr||now())+'</span></span></button>'}
   if(folder==='sch'){
    const t=window.__SCH?__SCH.thumb(z,px):'';
    return '<button class="card" data-os="'+z.id+'">'+
@@ -4253,13 +4503,16 @@ function homePanel(){
    (z.note?'<br>'+esc(z.note.slice(0,60)):'')+'</span></span></button>'}).join('');
  $('#hmEmpty').hidden=!!items.length;
  $('#hmEmpty').textContent=items.length?'':(q?'Nessun risultato per «'+hq+'».'
+  :folder==='ago'?'Ancora nessuna selezione a mano. Premi «Nuova selezione aghi» per cominciare.'
   :folder==='sch'?'Ancora nessuna scheda perforata. Premi «Nuova scheda» per cominciare.'
   :folder==='proj'?'Ancora nessun progetto. Premi «Crea progetto» per cominciare.'
   :'Ancora nessun campione. Falli man mano che lavori i quadrati di prova: li ritrovi qui quando ti servono.');
  $('#hmGrid').querySelectorAll('[data-op]').forEach(b=>b.onclick=()=>{openProj(b.dataset.op);mode='draw';go('proj')});
  $('#hmGrid').querySelectorAll('[data-og]').forEach(b=>b.onclick=()=>{ggId=b.dataset.og;go('gauge')});
  $('#hmGrid').querySelectorAll('[data-os]').forEach(b=>b.onclick=()=>{
-  if(window.__SCH&&__SCH.open(b.dataset.os))go('sch')})}
+  if(window.__SCH&&__SCH.open(b.dataset.os))go('sch')});
+ $('#hmGrid').querySelectorAll('[data-oa]').forEach(b=>b.onclick=()=>{
+  if(window.__AGO&&__AGO.open(b.dataset.oa))go('ago')})}
 function nameOf(z){return z.n!==undefined?(z.n||''):(z.name||'')}
 document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>{folder=b.dataset.f;hq='';homePanel()});
 $('#vwGrid').onclick=()=>{hview='grid';homePanel()};
@@ -4276,6 +4529,11 @@ $('#hmNewS').onclick=()=>{
  const c=__SCH.create('Nuova scheda');
  L.cards=L.cards||[];L.cards.push(c);saveL();FB.later();
  if(__SCH.open(c.id))go('sch')};
+$('#hmNewA').onclick=()=>{
+ if(!window.__AGO)return;
+ const c=__AGO.create('Nuova selezione');
+ L.ago=L.ago||[];L.ago.push(c);saveL();FB.later();
+ if(__AGO.open(c.id))go('ago')};
 $('#hmNewG').onclick=()=>{
  let g=GS().find(x=>x.v0);
  if(g)delete g.v0;else{g=ng('');L.gauges.push(g)}
@@ -4420,23 +4678,25 @@ const FB={
   if(this.busy||!this.cfg().key)return;
   this.busy=1;
   try{
-   const [rg,rp,rc]=await Promise.all([this.list('gauges'),this.list('projects'),this.list('cards')]);
+   const [rg,rp,rc,rn]=await Promise.all([this.list('gauges'),this.list('projects'),this.list('cards'),this.list('needles')]);
    let ch=0;
    ch|=this.merge(rg,L.gauges,s=>{try{const o=JSON.parse(s);return o&&o.n!==undefined?o:null}catch(e){return null}});
    ch|=this.merge(rp,L.projects,s=>decProj(s));
-   L.cards=L.cards||[];
+   L.cards=L.cards||[];L.ago=L.ago||[];
+   ch|=this.merge(rn,L.ago,s=>{try{const o=JSON.parse(s);return(o&&Array.isArray(o.free)&&window.__AGO)?__AGO.fix(o):null}catch(e){return null}});
    ch|=this.merge(rc,L.cards,s=>{try{const o=JSON.parse(s);
     return(o&&Array.isArray(o.m)&&window.__SCH)?__SCH.fixCard(o):null}catch(e){return null}});
    /* invia ciò che qui è più recente */
    const jobs=[];
    const mk=(col,arr,enc)=>arr.forEach(z=>{
-    const r=(col==='gauges'?rg:col==='cards'?rc:rp).find(x=>x.id===z.id);
+    const r=(col==='gauges'?rg:col==='cards'?rc:col==='needles'?rn:rp).find(x=>x.id===z.id);
     if(r&&r.up>=(z.up||0))return;
     if(z.v0||(L.pushed[z.id]===z.up&&r))return;
     jobs.push(this.put(col,z.id,z.del?'':enc(z),z.up||now(),!!z.del).then(()=>{L.pushed[z.id]=z.up}))});
    mk('gauges',L.gauges,z=>JSON.stringify(z));
    mk('projects',L.projects,z=>encProj(z));
    mk('cards',L.cards,z=>JSON.stringify(z));
+   mk('needles',L.ago,z=>JSON.stringify(z));
    await Promise.all(jobs);
    /* se qualcosa è arrivato, riallinea ciò che è aperto */
    if(ch){
@@ -4449,7 +4709,8 @@ const FB={
     if(cur)S=cur;else{if(!PR().length)L.projects.push(nproj(''));openProj(PR()[0].id)}
     S.cur=clamp(S.cur|0,0,S.ps.length-1);A=null;PT=null;
     /* se la scheda aperta è stata eliminata altrove, torna all'archivio */
-    if(view==='sch'&&window.__SCH&&!__SCH.alive())go('home')}
+    if(view==='sch'&&window.__SCH&&!__SCH.alive())go('home');
+    if(view==='ago'&&window.__AGO&&!__AGO.alive())go('home')}
    this.last=now();saveL();this.set('on','');
    if(ch){fill();repaint()}else if(!silent)repaint()}
   catch(e){this.set('err',String(e.message||e))}
