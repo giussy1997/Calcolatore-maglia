@@ -1972,7 +1972,10 @@ function wCells(c){
  const n=(c.wl|0)*2, r=c.wr|0;
  if(n>0&&r>0)return n*r;
  return (c.sm*c.sr)||0}
-function GA(){const g=GS(),c=g.find(z=>z.id===L.gid)||g[0]||ng('Campione');
+/* il campione appartiene al progetto (S.gid): cambiarlo altrove non lo tocca.
+   L.gid resta il predefinito per i progetti nuovi, le schede e i disegni aghi. */
+const gidP=()=>(S&&S.gid&&GS().some(z=>z.id===S.gid))?S.gid:L.gid;
+function GA(id0){const g=GS(),want=id0||gidP(),c=g.find(z=>z.id===want)||g.find(z=>z.id===L.gid)||g[0]||ng('Campione');
  const s=(c.sm/c.sw)*10||36, r=(c.sr/c.sh)*10||62;
  const cel=wCells(c);
  return{s,r,asp:s/r,gpc:(cel?c.wt/cel:0)||0,c}}
@@ -2061,6 +2064,8 @@ function fixL(j){
  if(!GS().some(z=>z.id===L.gid))L.gid=GS()[0].id;
  if(!PR().some(z=>z.id===L.pid))L.pid=PR()[0].id;
  S=PR().find(z=>z.id===L.pid);
+ /* i progetti senza campione proprio si fissano a quello in uso adesso */
+ j.projects.forEach(z=>{if(z&&!z.del&&!z.gid)z.gid=j.gid});
  return 1}
 function loadL(){
  try{const r=localStorage.getItem(K3);if(r&&fixL(JSON.parse(r)))return 1}catch(e){}
@@ -2893,7 +2898,7 @@ function regionList(){
 function gaugePanel(){
  const g=GA();
  $('#gl').innerHTML=GS().map(c=>{
-  const s=(c.sm/c.sw)*10||0,r=(c.sr/c.sh)*10||0,act=c.id===L.gid;
+  const s=(c.sm/c.sw)*10||0,r=(c.sr/c.sh)*10||0,act=c.id===gidP();
   return '<div class="gu'+(act?' on':'')+'">'+
   (c.img?'<img class="th" src="'+c.img+'" alt="">':'<span class="th"></span>')+
   '<span class="gr"><b>'+esc(c.n||(c.v0?'Campione predefinito':'Senza nome'))+'</b><br><span class="mu">'+
@@ -2902,7 +2907,7 @@ function gaugePanel(){
    (c.note?'<br>'+esc(c.note):'')+'</span></span>'+
   (act?'<span class="ok">in uso</span>':'<button data-a="'+c.id+'">Usa questo</button>')+
   '<button data-e="'+c.id+'">Apri la scheda</button></div>'}).join('');
- $('#gl').querySelectorAll('[data-a]').forEach(b=>b.onclick=()=>{L.gid=b.dataset.a;A=null;saveL();FB.later();fillG();render()});
+ $('#gl').querySelectorAll('[data-a]').forEach(b=>b.onclick=()=>useG(b.dataset.a));
  $('#gl').querySelectorAll('[data-e]').forEach(b=>b.onclick=()=>{ggId=b.dataset.e;go('gauge')});
  const t=projTotals();
  const rows=S.ps.map((z,i)=>{const c=t.per[i],n=c?c.cells:0,w=c?c.wt:0;
@@ -3111,13 +3116,12 @@ function center(){const w=$('#cvw');if(!w||!GM.ch)return;
 
 /* ---------- moduli intestazione ---------- */
 function fillG(){
- $('#gs').innerHTML=GS().map(c=>'<option value="'+c.id+'"'+(c.id===L.gid?' selected':'')+'>'+esc(c.n)+'</option>').join('');
  const pe=$('#prs');if(pe)pe.innerHTML=PR().map(z=>'<option value="'+z.id+'"'+(z.id===L.pid?' selected':'')+'>'+esc(z.name||'Senza nome')+'</option>').join('')}
 function fill(){
  $('#nm').value=S.name;$('#nt').value=S.note;
  $('#mc').innerHTML=Object.keys(MC).map(k=>'<option'+(k===S.machine?' selected':'')+'>'+k+'</option>').join('');
  $('#nd').value=S.needles;fillG();
- {const pp=$('#pcPop');if(pp&&!pp.hidden)pgFill()}   /* il riquadro aperto resta allineato */
+ {const pp=$('#gPop');if(pp&&!pp.hidden)pgFill()}   /* il riquadro aperto resta allineato */
  $('#ps').innerHTML=S.ps.map((z,i)=>'<option value="'+i+'"'+(i===S.cur?' selected':'')+'>'+esc(z.name||'Pezzo '+(i+1))+'</option>').join('');
  const q=p();$('#pn').value=q.name;$('#un').value=q.unit;
  $('#nh').value=q.unit==='cm'?q.hcm:q.rows;$('#uu').textContent=q.unit==='cm'?'cm di altezza':'righe';
@@ -3138,7 +3142,7 @@ let UNDO=[],REDO=[],uKey='';
 function shot(){const q=p(),t=twinOf(q);
  return JSON.stringify({s:q.shapes,d:q.div,r:q.regions,pa:q.paint,pt:q.pts,
   ad:q.add,rm:q.rem,ro:q.rows,hc:q.hcm,un:q.unit,sb:sub,mi:mir,mv:mirV,ay:axY,
-  gi:q.gid||'',ag:L.gid,
+  gi:q.gid||'',ag:gidP(),
   /* se c'è un gemello, nella fotografia ci sono anche i suoi ritocchi */
   tw:t?{p:q.twin,ad:t.add,rm:t.rem}:0},REP)}
 /* la pila vale per un solo pezzo: cambiando pezzo o progetto riparte da zero */
@@ -3148,6 +3152,10 @@ function pushUndo(){
  UNDO.push(shot());if(UNDO.length>40)UNDO.shift();
  REDO.length=0;uiUndo()}
 function applySnap(j){
+ if(j.slice(0,2)==='P:'){const n=decProj(j.slice(2));   /* fotografia di tutto il progetto */
+  if(n){S.ps=n.ps;S.gid=n.gid;S.cur=clamp(S.cur,0,S.ps.length-1);
+   selP=-1;sel=null;A=null;PT=null;rSel=-1;bHot=-1;bDrag=-1;pDrag=-1;tDrag=-1;fh=null}
+  return}
  const q=p(),o=JSON.parse(j),W=S.needles;
  q.shapes=(o.s||[]).map(sh=>sh.mask?{mask:sh.mask.map(x=>toU8(x,W))}:sh);
  q.div=o.d||[];q.regions=o.r||[];q.paint=(o.pa||[]).map(x=>toU8(x,W));q.pts=o.pt||[];
@@ -3159,12 +3167,13 @@ function applySnap(j){
  /* e il gemello torna indietro insieme a lui */
  if(o.tw&&o.tw.p){const t=S.ps.find(z=>z!==q&&z.pid===o.tw.p);
   if(t){t.add=(o.tw.ad||[]).map(x=>toU8(x,W));t.rem=(o.tw.rm||[]).map(x=>toU8(x,W))}}
- if(o.ag&&o.ag!==L.gid&&GS().some(z=>z.id===o.ag)){L.gid=o.ag;saveL();FB.later()}
+ if(o.ag&&o.ag!==gidP()&&GS().some(z=>z.id===o.ag)){S.gid=o.ag}
  selP=-1;sel=null;A=null;PT=null;rSel=-1;bHot=-1;bDrag=-1;pDrag=-1;tDrag=-1;fh=null}
 function step(from,to,word){
  uKeep();
  if(!from.length){msg='Non c’è nulla da '+word+'.';render();return}
- to.push(shot());applySnap(from.pop());
+ {const e=from[from.length-1];to.push(typeof e==='string'&&e.slice(0,2)==='P:'?'P:'+encProj(S):shot())}
+ applySnap(from.pop());
  msg=word==='annullare'?'Modifica annullata.':'Modifica ripetuta.';
  save();fill();render()}
 function doUndo(){step(UNDO,REDO,'annullare')}
@@ -3239,7 +3248,7 @@ function reGrid(a2,fx,fy,W){
   out.push(z)}
  return out}
 /* tiene fermi i centimetri e rifà maglie e righe col campione nuovo */
-function reGauge(oldG){
+function reGauge(oldG,noAx){
  const q=p(),ng2=GA();
  if(q.unit==='cm')return 0;
  const so=(oldG.sm/oldG.sw)*10, ro=(oldG.sr/oldG.sh)*10;
@@ -3253,13 +3262,13 @@ function reGauge(oldG){
   if(sh.pts)sh.pts=sh.pts.map(v=>[mx(v[0]),my(v[1]),bw(v)]);
   if(sh.mv)sh.ay=my(+sh.ay||0);
   if(sh.mask)sh.mask=reGrid(sh.mask,fx,fy,W)});
- if(axY)axY=my(axY);
+ if(axY&&!noAx)axY=my(axY);
  q.div=(q.div||[]).map(my);
  (q.regions||[]).forEach(rg=>{rg.x0=rg.x0*fx;rg.x1=rg.x1*fx;rg.y0=rg.y0*fy;rg.y1=rg.y1*fy});
  q.paint=reGrid(q.paint,fx,fy,W);q.add=reGrid(q.add,fx,fy,W);q.rem=reGrid(q.rem,fx,fy,W);
  q.rows=clamp(Math.round((q.rows||120)*fy),10,1400);
  const d=DONE();if(d)setDONE(clamp(Math.round(d*fy),0,q.rows));
- q.gid=L.gid;A=null;return 1}
+ q.gid=gidP();A=null;return 1}
 
 function rowsAt(at,n,via,copy){
  const q=p(),g=GA(),ky=kxy(q,g)[1],W=S.needles;
@@ -3816,18 +3825,16 @@ function buildChrome(){
   '<div class="tr" style="margin-top:6px"><input id="pn" placeholder="Nome del pezzo" style="flex:1"></div>'+
   '<div class="tr" style="margin-top:6px"><button id="pa">+ Nuovo</button><button id="pc">Duplica</button><button id="pd">Elimina</button></div>'+
   '<div class="sbsep"></div>'+
-  '<div class="sbh" style="padding:2px 2px 6px">Campione di questo pezzo</div>'+
+  '<div class="tr"><label class="mu" style="flex:1">Unità<select id="un" style="width:100%"><option value="st">maglie e righe</option><option value="cm">centimetri</option></select></label>'+
+  '<label class="mu" style="flex:1">Altezza<span class="tr"><input id="nh" type="number" step="any" style="flex:1"><span class="mu" id="uu"></span></span></label></div>';
+
+ $('#gPop').innerHTML='<div class="sbh" style="padding:2px 2px 6px">Campione di questo progetto</div>'+
   '<p class="st" id="pgNow" style="margin:0 0 6px"></p>'+
   '<label class="mu" style="display:block">Passa al campione<select id="pgNew" style="width:100%"></select></label>'+
   '<button id="pgGo" style="margin-top:6px;width:100%" title="Le misure in centimetri restano quelle: aghi e righe si rifanno col campione nuovo">Cambia e tieni i centimetri</button>'+
   '<button id="pgKeep" style="margin-top:5px;width:100%" title="Aghi e righe restano quelli: cambiano le misure in centimetri">Cambia e tieni maglie e righe</button>'+
   '<p class="st" id="pgHint" style="margin:6px 0 0"></p>'+
-  '<div class="sbsep"></div>'+
-  '<div class="tr"><label class="mu" style="flex:1">Unità<select id="un" style="width:100%"><option value="st">maglie e righe</option><option value="cm">centimetri</option></select></label>'+
-  '<label class="mu" style="flex:1">Altezza<span class="tr"><input id="nh" type="number" step="any" style="flex:1"><span class="mu" id="uu"></span></span></label></div>';
-
- $('#gPop').innerHTML='<div class="sbh" style="padding:2px 2px 6px">Campione in uso</div>'+
-  '<select id="gs" style="width:100%"></select><div id="gpl" style="margin-top:8px"></div>';
+  '<button id="pgOpen" style="margin-top:5px;width:100%">Apri la scheda del campione</button>';
 
  $('#mPop').innerHTML='<div class="sbh" style="padding:2px 2px 6px">Macchina del progetto</div>'+
   '<select id="mc" style="width:100%"></select>'+
@@ -3860,18 +3867,7 @@ function footBoxes(){
   esc((c.n||'campione').slice(0,22))+' '+cm1(g.s)+'\u00d7'+cm1(g.r)+
   ' \u00b7 '+esc(String(S.machine||'').replace('Silver Reed','S. Reed'))+' '+S.needles+' aghi'+
   (c2?' \u00b7 '+nf(c2.w)+'\u00d7'+nf(c2.h)+' maglie-righe ('+cm1(c2.w*10/g.s)+'\u00d7'+cm1(c2.h*10/g.r)+' cm)':' \u00b7 pezzo vuoto');
- const gp=$('#gpl');
- if(gp)gp.innerHTML=GS().map(z=>'<div class="gu'+(z.id===L.gid?' on':'')+'" style="margin:4px 0">'+
-  (z.img?'<img class="th" src="'+z.img+'" alt="">':'<span class="th"></span>')+
-  '<span class="gr"><b>'+esc(z.n||(z.v0?'Predefinito':'Senza nome'))+'</b><br><span class="mu">'+
-  cm1((z.sm/z.sw)*10||0)+' × '+cm1((z.sr/z.sh)*10||0)+'</span></span>'+
-  (z.id===L.gid?'<span class="ok">in uso</span>':'<button data-gp="'+z.id+'">Usa</button>')+'</div>').join('');
- if(gp)gp.querySelectorAll('[data-gp]').forEach(b=>b.onclick=()=>{
-  L.gid=b.dataset.gp;A=null;sel=null;saveL();FB.later();
-  msg=p().unit==='cm'
-   ?'Campione in uso: «'+gName(L.gid)+'». Il pezzo è in centimetri: le misure restano, maglie e righe si rifanno da sole.'
-   :'Campione in uso: «'+gName(L.gid)+'». Aghi e righe restano quelli e cambiano i centimetri: per tenere invece i centimetri, usa «Cambia e tieni i centimetri» nel riquadro Pezzo.';
-  fill();popTo('#gPop');render()})}
+}
 
 /* ---------- righelli fissi attorno al foglio ---------- */
 const RT=26,RL=40,RB=26,RR=42;
@@ -3986,8 +3982,8 @@ $('#drTog').onclick=()=>{const e=$('#dr');e.classList.toggle('min');
 try{if(localStorage.getItem('mq-dr')==='0')$('#dr').classList.remove('min')}catch(x){}
 $('#cvw').addEventListener('scroll',()=>{if(!rafR){rafR=requestAnimationFrame(()=>{rafR=0;rulers()})}},{passive:true});
 let rafR=0;
-$('#pcBox').onclick=()=>{popTo('#pcPop');if(!$('#pcPop').hidden)pgFill()};
-$('#gBox').onclick=()=>popTo('#gPop');
+$('#pcBox').onclick=()=>popTo('#pcPop');
+$('#gBox').onclick=()=>{popTo('#gPop');if(!$('#gPop').hidden)pgFill()};
 $('#mBox').onclick=()=>popTo('#mPop');
 document.querySelectorAll('#vProj nav button').forEach(b=>b.onclick=()=>{
  mode=b.dataset.m;msg='';sel=null;drag=null;
@@ -4144,49 +4140,49 @@ const rowGo=via=>{const q=p(),cmu=q.unit==='cm';
   (nd?(both?': metà per lato, il disegno è rimasto centrato.':': quello che stava a destra si è scostato.')
     :': quello che stava sopra si è spostato.');
  save();fill();render()};
-/* cambio campione: da qui si cambia anche quello in uso, così le due schede
-   dicono sempre la stessa cosa */
-const pgOf=q=>(q.gid&&GS().some(z=>z.id===q.gid))?q.gid:L.gid;   /* con che campione è disegnato */
+/* il campione è del progetto: cambiandolo qui gli altri progetti restano com'erano.
+   Tutte le azioni sul campione stanno in questo solo riquadro. */
 const gName=id=>{const g=GS().find(z=>z.id===id);return g?(g.n||'Senza nome'):'—'};
 function pgFill(){
  const sel2=$('#pgNew');if(!sel2)return;
- const q=p(),cmu=q.unit==='cm',old=pgOf(q);
- sel2.innerHTML=GS().map(z=>'<option value="'+z.id+'">'+esc(z.n||'Senza nome')+'</option>').join('');
- sel2.value=L.gid;
- $('#pgNow').textContent='Questo pezzo è disegnato con «'+gName(old)+'»'+
-  (old===L.gid?' ed è anche il campione in uso.':'. In uso adesso: «'+gName(L.gid)+'».');
- const kp=$('#pgKeep');
- if(kp)kp.hidden=cmu;
+ const cmu=p().unit==='cm',cur=gidP();
+ sel2.innerHTML=GS().map(z=>'<option value="'+z.id+'">'+esc(z.n||'Senza nome')+' · '+cm1((z.sm/z.sw)*10||0)+' × '+cm1((z.sr/z.sh)*10||0)+'</option>').join('');
+ sel2.value=cur;
+ $('#pgNow').textContent='Questo progetto usa «'+gName(cur)+'». Gli altri progetti non cambiano.';
+ const kp=$('#pgKeep');if(kp)kp.hidden=cmu;
  $('#pgGo').textContent=cmu?'Cambia campione':'Cambia e tieni i centimetri';
  $('#pgHint').textContent=cmu
   ?'Il pezzo è in centimetri: le misure restano e maglie e righe si rifanno da sole.'
-  :'Il campione in uso vale per tutto l’archivio: gli altri pezzi li riadatti allo stesso modo.'}
-/* passa al campione scelto tenendo ferme le misure in centimetri */
+  :'Vale per tutti i pezzi del progetto. «Tieni i centimetri» rifà aghi e righe; «tieni maglie e righe» lascia il disegno com’è e cambiano i centimetri.'}
+/* passa al campione scelto lasciando aghi e righe come sono */
+function useG(id){
+ if(!GS().some(z=>z.id===id)||id===gidP())return;
+ pushUndo();S.gid=id;A=null;sel=null;
+ msg=p().unit==='cm'
+  ?'Campione «'+gName(id)+'» per questo progetto: le misure restano, maglie e righe si rifanno da sole. Gli altri progetti non cambiano.'
+  :'Campione «'+gName(id)+'» per questo progetto: aghi e righe restano quelli, cambiano i centimetri. Gli altri progetti non cambiano.';
+ save();fill();render()}
+/* passa al campione scelto tenendo ferme le misure in centimetri, su tutti i pezzi del progetto */
 $('#pgGo').onclick=()=>{
- const q=p(),old=pgOf(q),nw=$('#pgNew').value;
+ const q=p(),old=gidP(),nw=$('#pgNew').value;
  if(!GS().some(z=>z.id===nw)){msg='Scegli il campione a cui passare.';render();return}
- if(nw===old&&nw===L.gid){msg='È già questo il campione del pezzo: non c’è niente da cambiare.';render();return}
- pushUndo();
- const og=GS().find(z=>z.id===old);
- L.gid=nw;A=null;sel=null;saveL();FB.later();
- const fatto=q.unit!=='cm'&&og?reGauge(og):0;
- q.gid=nw;
+ if(nw===old){msg='È già il campione di questo progetto: non c’è niente da cambiare.';render();return}
+ uKeep();UNDO.push('P:'+encProj(S));if(UNDO.length>40)UNDO.shift();REDO.length=0;
+ const og=GS().find(z=>z.id===old),cur=S.cur;
+ S.gid=nw;A=null;sel=null;
+ let fatto=0;
+ S.ps.forEach((z,i)=>{S.cur=i;A=null;if(z.unit!=='cm'&&og&&reGauge(og,i!==cur))fatto++});
+ S.cur=cur;A=null;PT=null;
  msg=q.unit==='cm'
-  ?'Campione in uso: «'+gName(nw)+'». Il pezzo è in centimetri, le misure restano e maglie e righe si sono rifatte da sole.'
+  ?'Campione «'+gName(nw)+'» per questo progetto: le misure restano e maglie e righe si sono rifatte da sole.'
   :fatto
    ?'Campione «'+gName(nw)+'»: i centimetri sono rimasti, ora sono '+nf(q.rows)+
     ' righe. Controlla i bordi, qualche maglia può essersi spostata di uno.'
    :'Campione «'+gName(nw)+'»: ha la stessa densità di prima, non c’era niente da rifare.';
  save();fill();render()};
-/* passa al campione scelto lasciando aghi e righe come sono */
-$('#pgKeep').onclick=()=>{
- const q=p(),nw=$('#pgNew').value;
- if(!GS().some(z=>z.id===nw)){msg='Scegli il campione a cui passare.';render();return}
- pushUndo();
- L.gid=nw;q.gid=nw;A=null;sel=null;saveL();FB.later();
- msg='Campione «'+gName(nw)+'»: aghi e righe restano quelli, cambiano le misure in centimetri.';
- save();fill();render()};
-$('#bRowIns').onclick=()=>rowGo(0);
+$('#pgKeep').onclick=()=>useG($('#pgNew').value);
+$('#pgOpen').onclick=()=>{ggId=gidP();go('gauge')};
+
 $('#bRowDel').onclick=()=>rowGo(1);
 /* cambiando fra righe e aghi la quota riparte da sé */
 $('#iRowAx').onchange=()=>{$('#iRowAt').value='';render()};
@@ -4301,15 +4297,10 @@ $('#nm').oninput=e=>{S.name=e.target.value;save();fillG()};
 $('#nt').oninput=e=>{S.note=e.target.value;save()};
 $('#mc').onchange=e=>{S.machine=e.target.value;resizeN(MC[S.machine]);save();fill();render()};
 $('#nd').onchange=e=>{resizeN(+e.target.value||S.needles);save();fill();render()};
-$('#gs').onchange=e=>{L.gid=e.target.value;A=null;sel=null;saveL();FB.later();
- msg=p().unit==='cm'
-  ?'Campione in uso: «'+gName(L.gid)+'». Il pezzo è in centimetri: le misure restano, maglie e righe si rifanno da sole.'
-  :'Campione in uso: «'+gName(L.gid)+'». Aghi e righe restano quelli e cambiano i centimetri: per tenere invece i centimetri, usa «Cambia e tieni i centimetri» nel riquadro Pezzo.';
- fill();render()};
 
 $('#ps').onchange=e=>{S.cur=+e.target.value;A=null;selP=-1;side=0;sel=null;msg='';rSel=-1;bHot=-1;save();fill();render()};
 $('#pn').oninput=e=>{p().name=e.target.value;save();const o=$('#ps').options[S.cur];if(o)o.textContent=e.target.value||'Pezzo '+(S.cur+1)};
-$('#pa').onclick=()=>{const n=np('Pezzo '+(S.ps.length+1));n.gid=L.gid;
+$('#pa').onclick=()=>{const n=np('Pezzo '+(S.ps.length+1));
  S.ps.push(n);S.cur=S.ps.length-1;A=null;selP=-1;side=0;sel=null;save();fill();render()};
 $('#pc').onclick=()=>{
  /* il duplicato va riportato dalle stringhe salvate agli array veri,
@@ -4366,7 +4357,7 @@ function go(v){view=v;
 window.__MQ={
  get L(){return L},
  save(){saveL()}, later(){FB.later()},
- gauge(){return GA()}, gauges(){return GS()}, gaugeId(){return L.gid},
+ gauge(){return GA(L.gid)}, gauges(){return GS()}, gaugeId(){return L.gid},
  useGauge(id){L.gid=id;A=null;saveL();FB.later()},
  openGauge(id){ggId=id;go('gauge')},
  go(v){go(v)}, touch(pane,fn){installTouch(pane,fn)}, coarse(){return coarse()},
@@ -4499,7 +4490,7 @@ function homePanel(){
   return '<button class="card" data-og="'+z.id+'">'+
    '<span class="ic">'+(z.img?'<img src="'+z.img+'" alt="">':'<span class="ph">nessuna<br>foto</span>')+'</span>'+
    '<span class="gr"><b>'+esc(z.n||'Senza nome')+'</b>'+
-   '<span class="sub">'+cm1(s2)+' m · '+cm1(r2)+' r ogni 10 cm'+(z.id===L.gid?' · <b>attivo</b>':'')+
+   '<span class="sub">'+cm1(s2)+' m · '+cm1(r2)+' r ogni 10 cm'+(z.id===L.gid?' · <b>predefinito</b>':'')+
    (z.note?'<br>'+esc(z.note.slice(0,60)):'')+'</span></span></button>'}).join('');
  $('#hmEmpty').hidden=!!items.length;
  $('#hmEmpty').textContent=items.length?'':(q?'Nessun risultato per «'+hq+'».'
@@ -4523,7 +4514,7 @@ $('#hmQ').oninput=e=>{hq=e.target.value;homePanel()};
 $('#hmNewP').onclick=()=>{
  let z=PR().find(x=>x.v0);
  if(z){delete z.v0;z.name=z.name||'Nuovo progetto'}else{z=nproj('Nuovo progetto');L.projects.push(z)}
- openProj(z.id);z.up=now();saveL();FB.later();mode='draw';go('proj');$('#nm').focus();$('#nm').select()};
+ z.gid=L.gid;openProj(z.id);z.up=now();saveL();FB.later();mode='draw';go('proj');$('#nm').focus();$('#nm').select()};
 $('#hmNewS').onclick=()=>{
  if(!window.__SCH)return;
  const c=__SCH.create('Nuova scheda');
@@ -4547,7 +4538,7 @@ function ggFill(){
  const im=$('#ggImg');if(g.img)im.src=g.img;else im.removeAttribute('src');
  $('#ggPhz').hidden=!!g.img;$('#ggImgDel').hidden=!g.img;
  ['sm','sr','sw','sh','wt','wl','wr'].forEach(k=>$('#gg_'+k).value=g[k]||'');
- $('#ggUse').textContent=g.id===L.gid?'È il campione attivo':'Usa nei progetti';
+ $('#ggUse').textContent=g.id===L.gid?'È il predefinito per i nuovi progetti':'Usa per i nuovi progetti';
  $('#ggUse').disabled=g.id===L.gid;
  $('#ggOut').innerHTML=ggOutHtml(g)}
 /* la lettura del campione: densità da una parte, peso dall'altra */
@@ -4705,6 +4696,7 @@ const FB={
     if(!GS().length)L.gauges.push(ng('Campione 1'));
     if(!PR().length)L.projects.push(nproj(''));
     if(!GS().some(z=>z.id===L.gid))L.gid=GS()[0].id;
+    PR().forEach(z=>{if(!z.gid)z.gid=L.gid});
     const cur=PR().find(z=>z.id===L.pid);
     if(cur)S=cur;else{if(!PR().length)L.projects.push(nproj(''));openProj(PR()[0].id)}
     S.cur=clamp(S.cur|0,0,S.ps.length-1);A=null;PT=null;
