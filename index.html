@@ -475,6 +475,9 @@ nav button{flex:1 1 90px;padding:10px 6px;font-weight:700}
 <p class="st">Chiude l’app a chi prende in mano il dispositivo. Non è una cassaforte: chi conosce il browser può comunque leggere i dati salvati. A proteggere davvero l’archivio condiviso è la password di Firebase.</p>
 <div class="tr"><input id="stPw" type="password" placeholder="Nuova password" autocomplete="new-password"><input id="stPw2" type="password" placeholder="Ripetila" autocomplete="new-password"><button id="stSet">Imposta</button><button id="stOff">Togli la password</button></div>
 <p class="st" id="stMsg"></p>
+<h3>Cestino</h3>
+<p class="st">Quello che elimini finisce qui e si può rimettere a posto. Il ripristino torna anche sull’archivio condiviso.</p>
+<div id="trList"></div>
 <section id="sa">
 <h3>Archivio condiviso</h3>
 <p class="st">Chiave e progetto sono già impostati. Per vedere lo stesso archivio basta inserire <b>l’indirizzo e la password in comune</b> e premere Collegati.</p>
@@ -1679,7 +1682,7 @@ $('#kDel').onclick=()=>{
  /* lapide, non cancellazione: così sparisce anche sull'altro dispositivo */
  L=MQ().L;
  const i=L.cards.findIndex(z=>z.id===SC.id);
- if(i>=0)L.cards[i]={id:SC.id,del:1,up:now()};
+ if(i>=0){L.cards[i].del=1;L.cards[i].up=now()}
  delete L.done[SC.id];SC=null;save();MQ().later();MQ().go('home')};
 /* entrando in Trascrivi porta sott'occhio la prima riga ancora da bucare */
 function toNext(){
@@ -1908,7 +1911,7 @@ $('#agDup').onclick=()=>{const c=JSON.parse(JSON.stringify(St));c.id=uid();c.n=(
  const L=MQ().L;L.ago.push(fix(c));MQ().save();MQ().later();open(c.id)};
 /* lapide, non cancellazione: così sparisce anche sull'altro dispositivo */
 $('#agDel').onclick=()=>{const L=MQ().L,i=L.ago.findIndex(z=>z.id===St.id);
- if(i>=0)L.ago[i]={id:St.id,del:1,up:now()};delete L.counters[dkey()];St=null;MQ().save();MQ().later();MQ().go('home')};
+ if(i>=0){L.ago[i].del=1;L.ago[i].up=now()}delete L.counters[dkey()];St=null;MQ().save();MQ().later();MQ().go('home')};
 addEventListener('resize',()=>{if(St&&$('#vAgo').classList.contains('on'))render()});
 
 function thumb(c,px){try{const w=px||168,n=c.L+c.R,cw=w/n,q=GSR(),ch=cw*q.s/q.r,h=Math.max(40,Math.min(Math.round(w*.7),Math.round(c.rows*ch)));
@@ -4381,9 +4384,22 @@ $('#lkPw').onkeydown=e=>{if(e.key==='Enter')$('#lkGo').click()};
 $('#hmLock').onclick=()=>{if(!L.lock){go('set');$('#stPw').focus();
   $('#stMsg').innerHTML='<span class="ac">Non hai ancora una password: impostala qui.</span>';return}
  FB.off();go('lock');setTimeout(()=>$('#lkPw').focus(),50)};
+/* il cestino: elimina segna soltanto, i dati restano finché non li rimetti a posto */
+function trashPanel(){const el=$('#trList');if(!el)return;
+ const it=[];
+ L.projects.forEach(z=>{if(z&&z.del&&Array.isArray(z.ps))it.push({z,t:'Progetto',n:z.name||'Senza nome'})});
+ L.gauges.forEach(z=>{if(z&&z.del&&z.sm!==undefined)it.push({z,t:'Campione',n:z.n||'Senza nome'})});
+ (L.cards||[]).forEach(z=>{if(z&&z.del&&Array.isArray(z.m))it.push({z,t:'Scheda',n:z.n||'Senza nome'})});
+ (L.ago||[]).forEach(z=>{if(z&&z.del&&Array.isArray(z.free))it.push({z,t:'Selezione aghi',n:z.n||'Senza nome'})});
+ it.sort((a,b)=>(b.z.up||0)-(a.z.up||0));
+ el.innerHTML=it.length?it.map((o,i)=>'<div class="rg"><span class="nmm">'+o.t+'</span><b>'+esc(o.n)+'</b>'+
+  '<span class="mu">eliminato '+dstr(o.z.up||now())+'</span><button data-rs="'+i+'">Ripristina</button></div>').join('')
+  :'<p class="st">Il cestino è vuoto.</p>';
+ el.querySelectorAll('[data-rs]').forEach(b=>b.onclick=()=>{const o=it[+b.dataset.rs];
+  delete o.z.del;o.z.up=now();saveL();FB.later();trashPanel();homePanel()})}
 function setPanel(){
  $('#stMsg').textContent=L.lock?'C’è una password impostata.':'Nessuna password: l’app si apre subito.';
- $('#stOff').hidden=!L.lock}
+ $('#stOff').hidden=!L.lock;trashPanel()}
 $('#stSet').onclick=async()=>{
  const a=$('#stPw').value,b=$('#stPw2').value;
  if(a.length<4){$('#stMsg').innerHTML='<span class="ac">Serve una password di almeno 4 caratteri.</span>';return}
