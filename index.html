@@ -74,6 +74,7 @@ canvas{display:block;touch-action:none}
 .ac{color:var(--hot);font-weight:700}.mu{color:var(--mut);font-size:13px}.ok{color:var(--ok);font-weight:700}
 .ln{margin:6px 0;padding:8px 11px;border:1px solid var(--line);border-radius:9px;background:var(--card)}
 .ln.ac{border-left:4px solid var(--hot)}
+.ln.up{opacity:.6;cursor:pointer;border-left:4px solid var(--hot);user-select:none;-webkit-user-select:none}.ln.up:hover{opacity:1}
 .ln.nt{border-left:4px solid var(--acc);color:var(--ink);font-weight:500}
 .ln.wr{border-left:4px solid var(--hot);background:var(--accbg);color:var(--hot);font-weight:700}
 .ch{display:block;width:100%;text-align:left;margin:6px 0;padding:8px 11px}
@@ -1913,6 +1914,11 @@ $('#agDup').onclick=()=>{const c=JSON.parse(JSON.stringify(St));c.id=uid();c.n=(
 $('#agDel').onclick=()=>{const L=MQ().L,i=L.ago.findIndex(z=>z.id===St.id);
  if(i>=0){L.ago[i].del=1;L.ago[i].up=now()}delete L.counters[dkey()];St=null;MQ().save();MQ().later();MQ().go('home')};
 addEventListener('resize',()=>{if(St&&$('#vAgo').classList.contains('on'))render()});
+addEventListener('keydown',e=>{
+ if(!St||!work||!$('#vAgo').classList.contains('on')||e.metaKey||e.ctrlKey||e.altKey)return;
+ const tg=e.target&&e.target.tagName;if(tg==='INPUT'||tg==='SELECT'||tg==='TEXTAREA')return;
+ if(['ArrowRight','ArrowDown','PageDown'].includes(e.key)){e.preventDefault();$('#agBp').click()}
+ else if(['ArrowLeft','ArrowUp','PageUp'].includes(e.key)){e.preventDefault();$('#agBm').click()}});
 
 function thumb(c,px){try{const w=px||168,n=c.L+c.R,cw=w/n,q=GSR(),ch=cw*q.s/q.r,h=Math.max(40,Math.min(Math.round(w*.7),Math.round(c.rows*ch)));
  const cn=document.createElement('canvas');cn.width=w;cn.height=h;const x=cn.getContext('2d');if(!x)return'';
@@ -2657,14 +2663,14 @@ function slopeOf(sg){
 
 /* ---------- istruzioni per riga ---------- */
 function info(r){
- const a=prep(),q=p(),cur=segs(r),pv=r>0?segs(r-1):[],Gl=[],per=[];let sh=0,ev=0;
+ const a=prep(),q=p(),cur=segs(r),pv=r>0?segs(r-1):[],Gl=[],per=[];let sh=0,ev=0,inc=0,dec=0;
  cur.forEach(s=>{const o=pv.filter(z=>ov(z,s)),t=[];
   if(!o.length){t.push('avvia '+s.n+' maglie');ev=1}
   else if(o.length>1){t.push('riunisci: chiudi il vuoto fra le due parti');ev=1}
   else{const z=o[0],sib=cur.filter(u=>ov(z,u)),k=sib.indexOf(s);let dl=s.l-z.l,dr=z.r-s.r;
    if(sib.length>1){if(k>0)dl=0;if(k<sib.length-1)dr=0;t.push('parte separata dall’apertura');ev=1}
-   if(dl){t.push((dl>0?'diminuisci ':'aumenta ')+Math.abs(dl)+' a sinistra');sh=1}
-   if(dr){t.push((dr>0?'diminuisci ':'aumenta ')+Math.abs(dr)+' a destra');sh=1}}
+   if(dl){t.push((dl>0?'diminuisci ':'aumenta ')+Math.abs(dl)+' a sinistra');sh=1;if(dl>0)dec=1;else inc=1}
+   if(dr){t.push((dr>0?'diminuisci ':'aumenta ')+Math.abs(dr)+' a destra');sh=1;if(dr>0)dec=1;else inc=1}}
   per.push(t)});
  pv.forEach(z=>{const o=cur.filter(s=>ov(z,s));
   if(!o.length){Gl.push(['Parte conclusa: chiudi '+z.n+' maglie','ac']);ev=1}
@@ -2698,7 +2704,7 @@ function info(r){
   if(cols.length>2)Gl.push(['Attenzione: '+cols.length+' fili in questa riga. La macchina ne lavora al massimo due.','wr']);
   Gl.push([(diff?'Prepara i fili — ':'Fili in lavoro — ')+list,'nt']);
   if(diff)ev=1}
- return{cur,G:Gl,per,sh,ev}}
+ return{cur,G:Gl,per,sh,ev,inc,dec}}
 function regWords(rg){
  if(rg.ty==='rib')return{n:'coste '+rg.k,of:'delle coste '+rg.k,end:'Coste '+rg.k+' finite'};
  if(rg.ty==='cable'){const t='treccia '+rg.cs+'+'+rg.cR;return{n:t,of:'della '+t,end:'Treccia '+rg.cs+'+'+rg.cR+' finita'}}
@@ -2720,10 +2726,16 @@ function runs(r){const a=prep(),q=p();if(r<0||r>=a.H)return[];const o=[];
    if(w!==v){o.push({a:st,b:c-1,v});st=c;v=w}}
   o.push({a:st,b:e,v})});
  return o}
+/* le prossime modifiche di larghezza, in trasparenza: doppio tocco per saltarci */
+function upNext(r,k){const a=prep(),o=[];
+ for(let i=r+1;i<a.H&&o.length<k;i++){const f=info(i);if(!f.sh)continue;
+  const acts=f.per.map(t=>t.filter(x=>/^(aumenta|diminuisci)/.test(x)).join(' · ')).filter(Boolean).join(' · ');
+  const work=f.cur.map(z=>lab(z.l)+'–'+lab(z.r)+' ('+z.n+' maglie)').join('  +  ');
+  o.push({row:i,d:i-r,kind:f.inc&&f.dec?'Aumenti e diminuzioni':f.inc?'Aumenti':'Diminuzioni',acts,work})}
+ return o}
 function nextEv(r){const q=p(),a=prep();let e=null,s=null;
  for(let i=r+1;i<a.H;i++){const f=info(i);if(f.ev&&e==null)e=i;if(f.sh&&s==null)s=i;if(e!=null&&s!=null)break}
  const t=[];
- if(s!=null)t.push('Prossimo aumento o diminuzione: riga '+(s+1)+' (fra '+(s-r)+')');
  if(e!=null)t.push('Prossimo evento: riga '+(e+1)+' (fra '+(e-r)+')');
  if(a.painted&&r+1<a.H){
   const nc=[...new Set(runs(r+1).map(z=>z.v))],pc=new Set(runs(r).map(z=>z.v));
@@ -2788,16 +2800,21 @@ function bn(){
  if(fin)h+='<div class="fr"><b class="big">Pezzo finito</b></div>';
  else{h+='<div class="fr"><div class="rn"><span>Riga</span><b>'+(r+1)+'</b></div><div><div class="mm">'+
   f.cur.reduce((n,s)=>n+s.n,0)+' maglie in lavoro</div>'+
-  (f.sh?'<div class="ac">Aumenti o diminuzioni in questa riga</div>':'<div class="mu">Riga dritta</div>')+'</div></div>';
+  (f.sh?'<div class="ac">'+(f.inc&&f.dec?'Aumenti e diminuzioni':f.inc?'Aumenti':'Diminuzioni')+' in questa riga</div>':'<div class="mu">Riga dritta</div>')+'</div></div>';
   f.G.forEach(t=>h+='<div class="ln '+(t[1]||'ac')+'">'+esc(t[0])+'</div>')}
  f.cur.forEach((s,i)=>{const nm=f.cur.length===2?['Sinistra','Destra'][i]:f.cur.length>1?'Parte '+(i+1):'Parte unica';
   h+='<button class="ch'+(i===side?' on':'')+'" data-s="'+i+'"><span class="dot" style="background:'+ZP[s.k%8][1]+'"></span><b>'+
    nm+'</b>: da '+lab(s.l)+' a '+lab(s.r)+', '+s.n+' maglie'+(!fin&&f.per[i].length?'<br>'+esc(f.per[i].join(' · ')):'')+'</button>'});
+ if(!fin){const up=upNext(r,3);
+  up.forEach(o=>h+='<div class="ln up" data-jr="'+o.row+'"><b>Riga '+(o.row+1)+'</b> · fra '+o.d+(o.d===1?' riga':' righe')+' — '+o.kind+': '+esc(o.acts)+'<br><span class="mu">in lavoro dopo: '+esc(o.work)+'</span></div>');
+  if(up.length)h+='<div class="mu">Doppio tocco su una modifica per portare il contarighe a quella riga.</div>'}
  if(ss){const s0=a.zmin[ss.k];if(fin||s0<D)h+='<button id="bj" class="ch">⇤ Riparti dall’inizio di questa parte (riga '+(s0+1)+')</button>'}
  if(!fin)nextEv(r).forEach(t=>h+='<div class="mu">'+esc(t)+'</div>');
  el.innerHTML=h;
  el.querySelectorAll('.ch[data-s]').forEach(b=>b.onclick=()=>{side=+b.dataset.s;render()});
- const bj=$('#bj');if(bj)bj.onclick=()=>{setDONE(a.zmin[ss.k]);render();center()}}
+ const bj=$('#bj');if(bj)bj.onclick=()=>{setDONE(a.zmin[ss.k]);render();center()};
+ el.querySelectorAll('[data-jr]').forEach(b=>{let t0=0;b.onclick=()=>{const n=Date.now();
+  if(n-t0<450){t0=0;setDONE(+b.dataset.jr);side=0;render();center()}else t0=n}})}
 
 /* ---------- forme già chiuse: si riaprono per rimettere mano ai punti ---------- */
 function shapeList(){
@@ -3053,7 +3070,8 @@ function ui(){
   br.innerHTML=svg('edge')+'<span>'+(showRt?'Segni dei ritocchi':'Ritocchi senza segni')+'</span>';
   br.title=showRt?'Nascondi i pallini dei ritocchi':'Mostra i pallini dei ritocchi'}}
  /* il gruppo delle righe e degli aghi parla nelle unità del pezzo */
- {const q2=p(),cmu=q2.unit==='cm',ax=$('#iRowAx'),nd=ax&&ax.value==='n';
+ {const q2=p(),ou=$('#iRowU')?$('#iRowU').value:'p',cmu=ou==='cm'||(ou==='p'&&q2.unit==='cm'),same=cmu===(q2.unit==='cm'),ax=$('#iRowAx'),nd=ax&&ax.value==='n';
+  if($('#bandR')){$('#bandR').hidden=!!nd;$('#bandN').hidden=!nd}
   const la=$('#labRowAt'),ln=$('#labRowN'),rh=$('#rowHint'),e=$('#iRowAt');
   const lb=$('#labRowBoth'),lc=$('#labRowCp');
   if(la)la.firstChild.nodeValue=nd?(cmu?'Alla distanza dal centro (cm)':'All’ago')
@@ -3062,7 +3080,7 @@ function ui(){
   if(lb)lb.hidden=!nd;
   if(lc)lc.textContent=nd?'copia l’ago di partenza per tutta la sua altezza'
    :'copia la riga di partenza su tutta la larghezza';
-  if(e&&document.activeElement!==e&&!e.value){
+  if(e&&same&&document.activeElement!==e&&!e.value){
    /* parto dal punto scelto col righello, se no da dove sei col contagiri */
    const sp=(rSel>=0&&q2.ruler&&q2.ruler[rSel])?q2.ruler[rSel]
     :(selP>=0&&q2.pts&&q2.pts[selP])?q2.pts[selP]:null;
@@ -3211,6 +3229,8 @@ function fixPiece(){
  n.paint=(n.paint||[]).map(s=>Uint8Array.from(s,Number));
  n.add=(n.add||[]).map(s=>Uint8Array.from(s,Number));
  n.rem=(n.rem||[]).map(s=>Uint8Array.from(s,Number));
+ n.ruler=(n.ruler||[]).map(v=>[Math.round(v[0]*kx),Math.round(v[1]*ky),bw(v)]);
+ n.pid=uid();n.twin='';   /* è un pezzo suo: niente gemello ereditato */
  n.pts=[];n.hold=null;
  S.ps.push(n);S.cur=S.ps.length-1;A=null;selP=-1;side=0;sel=null;
  msg='Pezzo fissato in maglie e righe con il campione «'+(GA().c.n||'')+'». L’originale in centimetri è rimasto.';
@@ -3807,6 +3827,10 @@ function buildChrome(){
   '<div class="sbg" id="sbRow">'+
    '<label>Cosa aggiungo<select id="iRowAx">'+
     '<option value="r">righe, in altezza</option><option value="n">aghi, in larghezza</option></select></label>'+
+   '<div id="bandR"><label>Solo fra gli aghi<span class="tr"><input id="iBA" placeholder="S13" style="flex:1;min-width:0"><input id="iBB" placeholder="D24" style="flex:1;min-width:0"></span></label></div>'+
+   '<div id="bandN"><label>Solo fra le righe<span class="tr"><input id="iBR0" placeholder="15" style="flex:1;min-width:0"><input id="iBR1" placeholder="22" style="flex:1;min-width:0"></span></label></div>'+
+   '<p class="st" style="margin:2px 0;font-size:11.5px">Con un intervallo si sposta solo quello: il resto del disegno resta fermo. Vuoto = tutta la larghezza o tutta l’altezza.</p>'+
+   '<label>Misuro in<select id="iRowU"><option value="p">unità del pezzo</option><option value="cm">centimetri</option><option value="n">aghi e righe</option></select></label>'+
    '<label id="labRowAt">Alla riga<input id="iRowAt" type="number" step="any"></label>'+
    '<label id="labRowN">Quante righe<input id="iRowN" type="number" min="1" max="400" step="any" value="10"></label>'+
    '<label id="labRowBoth" style="flex-direction:row;align-items:center;gap:6px">'+
@@ -4121,19 +4145,83 @@ $('#bRt').onclick=()=>{showRt=showRt?0:1;
   :'Segni dei ritocchi nascosti: le maglie ritoccate restano, non si vedono più i pallini.';
  render()};
 try{if(localStorage.getItem('mq-rt')==='0')showRt=0}catch(x){}
+/* ---------- aggiunta solo in un intervallo ----------
+   Inserisce (o toglie) righe soltanto fra due aghi, oppure aghi soltanto fra due righe.
+   Fuori dall'intervallo niente si muove; dentro, il disegno scorre e le righe o gli aghi
+   nuovi copiano quelli di partenza. Il risultato si scrive come ritocco dei bordi, così le
+   forme vettoriali restano com'erano. */
+let bandMsg='';
+function baseGrid(){const q=p(),g=GA(),W=S.needles,H=rowsOf(q,g),[kx,ky]=kxy(q,g);
+ const grid=Array.from({length:H},()=>U8(W));
+ q.shapes.forEach(sh=>{
+  if(sh.mask){for(let r=0;r<Math.min(H,sh.mask.length);r++){const m=sh.mask[r];for(let c=0;c<Math.min(W,m.length);c++)if(m[c])grid[r][c]=1}return}
+  polysOf(sh,kx,ky).forEach(P=>stamp(grid,P,W,H,sh.sub))});
+ return grid}
+function bandGo(nd,via,at,n,c0,c1,r0,r1,copy){
+ bandMsg='';
+ const q=p(),g=GA(),W=S.needles,h=W/2,[kx,ky]=kxy(q,g);
+ const a0=prep(),H0=a0.H,cur=a0.g.map(r=>Uint8Array.from(r));
+ const par0=Array.from({length:H0},(_,r)=>Uint8Array.from((q.paint&&q.paint[r])||U8(W)));
+ const gN=Math.max(1,Math.round(n*(nd?kx:ky)));
+ let H=H0,gAt=0;
+ if(!nd){
+  gAt=clamp(Math.round(at*ky),0,H0);
+  if(via&&gAt>=H0){bandMsg='Lì non c’è niente da togliere.';return 0}
+  if(!via){if(H0+gN>1400){bandMsg='Il pezzo diventerebbe troppo lungo.';return 0}
+   H=H0+gN;if(q.unit==='cm')q.hcm=+(H*10/g.r).toFixed(3);else q.rows=H}}
+ else{
+  gAt=clamp(Math.round(h+at*kx),0,W);
+  if(!via)for(let r=r0;r<=Math.min(r1,H0-1);r++)for(let c=Math.max(0,W-gN);c<W;c++)if(cur[r][c]||par0[r][c]){
+   bandMsg='Non c’è più spazio sul letto d’aghi: fra quelle righe il disegno arriva già al bordo.';return 0}}
+ const T=Array.from({length:H},(_,r)=>r<H0?Uint8Array.from(cur[r]):U8(W));
+ const P=Array.from({length:H},(_,r)=>r<H0?Uint8Array.from(par0[r]):U8(W));
+ if(!nd){
+  for(let c=c0;c<=c1;c++){
+   if(!via){
+    for(let r=H-1;r>=gAt+gN;r--){const s2=r-gN;T[r][c]=s2<H0?cur[s2][c]:0;P[r][c]=s2<H0?par0[s2][c]:0}
+    for(let r=gAt;r<Math.min(gAt+gN,H);r++){const s2=Math.min(gAt,H0-1),ok2=copy&&gAt<H0;T[r][c]=ok2?cur[s2][c]:0;P[r][c]=ok2?par0[s2][c]:0}}
+   else for(let r=gAt;r<H;r++){const s2=r+gN;T[r][c]=s2<H0?cur[s2][c]:0;P[r][c]=s2<H0?par0[s2][c]:0}}}
+ else{
+  for(let r=r0;r<=Math.min(r1,H-1);r++){
+   if(!via){
+    for(let c=W-1;c>=gAt+gN;c--){T[r][c]=cur[r][c-gN];P[r][c]=par0[r][c-gN]}
+    for(let c=gAt;c<Math.min(gAt+gN,W);c++){const s2=Math.min(gAt,W-1);T[r][c]=copy?cur[r][s2]:0;P[r][c]=copy?par0[r][s2]:0}}
+   else for(let c=gAt;c<W;c++){const s2=c+gN;T[r][c]=s2<W?cur[r][s2]:0;P[r][c]=s2<W?par0[r][s2]:0}}}
+ /* il risultato diventa ritocco: aggiunge dove la forma non c'è, toglie dove c'è */
+ const base=baseGrid(),tw=twinLive(q);
+ q.add=Array.from({length:H},()=>U8(W));q.rem=Array.from({length:H},()=>U8(W));q.paint=P;
+ for(let r=0;r<H;r++)for(let c=0;c<W;c++){
+  const b=r<base.length?base[r][c]:0,t=T[r][c];
+  if(t&&!b)q.add[r][c]=1;else if(!t&&b)q.rem[r][c]=1;
+  if(tw){const was=r<H0?cur[r][c]:0;if(t!==was)twinCell(tw.t,tw.lim,r,c,t?'add':'rem')}}
+ A=null;return via?-n:n}
+
 /* inserisce o toglie righe alla quota scelta, oppure aghi alla colonna scelta */
 const rowGo=via=>{const q=p(),cmu=q.unit==='cm';
  const nd=$('#iRowAx')&&$('#iRowAx').value==='n';
- const at=+$('#iRowAt').value||0, n2=+$('#iRowN').value||0;
+ let at=+$('#iRowAt').value||0, n2=+$('#iRowN').value||0;
+ /* se misuro in un'unità diversa da quella del pezzo, converto col campione */
+ const ou=$('#iRowU')?$('#iRowU').value:'p',conv=(ou==='cm'&&!cmu)||(ou==='n'&&cmu);
+ if(conv){const g0=GA(),f=nd?g0.s/10:g0.r/10;
+  if(cmu){at=at/f;n2=n2/f}else{at=Math.round(at*f);n2=Math.round(n2*f)}}
  const both=!$('#iRowBoth')||$('#iRowBoth').checked;
  const copy=!$('#iRowCp')||$('#iRowCp').checked;
  if(!(n2>0)){msg=nd?'Scrivi quanti aghi.':'Scrivi quante righe.';render();return}
+ /* intervallo facoltativo: solo fra due aghi (per le righe) o solo fra due righe (per gli aghi) */
+ const W0=S.needles,rg=nd?[$('#iBR0').value.trim(),$('#iBR1').value.trim()]:[$('#iBA').value.trim(),$('#iBB').value.trim()];
+ const band=!!(rg[0]||rg[1]);let c0=0,c1=W0-1,r0=0,r1=1e9;
+ if(band){
+  if(!nd){c0=rg[0]?needCol(rg[0],W0):0;c1=rg[1]?needCol(rg[1],W0):W0-1;
+   if(c0===null||c1===null){msg='Gli aghi non si capiscono: scrivi per esempio S13 e D24.';render();return}
+   if(c1<c0){const t=c0;c0=c1;c1=t}}
+  else{r0=rg[0]?parseInt(rg[0],10)-1:0;r1=rg[1]?parseInt(rg[1],10)-1:1e9;
+   if(!(r0>=0)||!(r1>=r0)){msg='Le righe non si capiscono: scrivi per esempio 15 e 22.';render();return}}}
  pushUndo();
- const d=nd?needlesAt(at,n2,via,both,copy):rowsAt(at,n2,via,copy);
+ const d=band?bandGo(nd,via,at,n2,c0,c1,r0,r1,copy):(nd?needlesAt(at,n2,via,both,copy):rowsAt(at,n2,via,copy));
  if(!d){UNDO.pop();uiUndo();
-  msg=nd?(via?'Lì non c’è niente da togliere.'
+  msg=bandMsg||(nd?(via?'Lì non c’è niente da togliere.'
    :'Non c’è più spazio sul letto d’aghi: il disegno arriva già al bordo. Riduci il numero di aghi o allarga gli aghi del progetto.')
-   :'Non c’è spazio per toglierne così tante.';
+   :'Non c’è spazio per toglierne così tante.');
   render();return}
  const k=Math.abs(d), kk=cmu?cm1(k):nf(k);
  const u=cmu?' cm':(nd?(k===1?' ago':' aghi'):(k===1?' riga':' righe'));
@@ -4142,6 +4230,9 @@ const rowGo=via=>{const q=p(),cmu=q.unit==='cm';
  msg=(via?(nd?'Tolti ':'Tolte '):(nd?'Inseriti ':'Inserite '))+kk+u+(via?' da ':' a ')+dove+
   (nd?(both?': metà per lato, il disegno è rimasto centrato.':': quello che stava a destra si è scostato.')
     :': quello che stava sopra si è spostato.');
+ if(band)msg=(via?(nd?'Tolti ':'Tolte '):(nd?'Inseriti ':'Inserite '))+kk+u+(via?' da ':' a ')+dove+
+  (nd?' solo fra le righe '+(r0+1)+' e '+(r1>1e8?'la cima':(r1+1)):' solo fra '+lab(c0-S.needles/2)+' e '+lab(c1-S.needles/2))+
+  ': fuori da lì il disegno non si muove, dentro scorre e il tratto nuovo copia quello di partenza.';
  save();fill();render()};
 /* il campione è del progetto: cambiandolo qui gli altri progetti restano com'erano.
    Tutte le azioni sul campione stanno in questo solo riquadro. */
@@ -4186,9 +4277,11 @@ $('#pgGo').onclick=()=>{
 $('#pgKeep').onclick=()=>useG($('#pgNew').value);
 $('#pgOpen').onclick=()=>{ggId=gidP();go('gauge')};
 
+$('#bRowIns').onclick=()=>rowGo(0);
 $('#bRowDel').onclick=()=>rowGo(1);
 /* cambiando fra righe e aghi la quota riparte da sé */
 $('#iRowAx').onchange=()=>{$('#iRowAt').value='';render()};
+$('#iRowU').onchange=()=>{$('#iRowAt').value='';render()};
 $('#bUf').onclick=doUndo;
 $('#bRd').onclick=doRedo;
 dbl($('#bEm'),()=>{const q=p();pushUndo();q.shapes=[];q.div=[];q.regions=[];q.paint=[];q.add=[];q.rem=[];q.pts=[];setDONE(0);q.hold=null;
@@ -4296,6 +4389,12 @@ $('#rCabTop').onchange=e=>{rtop=e.target.value};
 $('#yname').oninput=e=>{S.yn[yc]=e.target.value;save();if(mode==='work')bn()};
 $('#bp').onclick=()=>{const a=prep();if(DONE()<a.H){setDONE(DONE()+1);render();center()}};
 $('#bm').onclick=()=>{if(DONE()>0){setDONE(DONE()-1);render();center()}};
+/* frecce della tastiera: avanti e indietro col contarighe, senza toccare i tasti */
+addEventListener('keydown',e=>{
+ if(view!=='proj'||mode!=='work'||e.metaKey||e.ctrlKey||e.altKey)return;
+ const tg=e.target&&e.target.tagName;if(tg==='INPUT'||tg==='SELECT'||tg==='TEXTAREA')return;
+ if(['ArrowRight','ArrowDown','PageDown'].includes(e.key)){e.preventDefault();$('#bp').click()}
+ else if(['ArrowLeft','ArrowUp','PageUp'].includes(e.key)){e.preventDefault();$('#bm').click()}});
 $('#nm').oninput=e=>{S.name=e.target.value;save();fillG()};
 $('#nt').oninput=e=>{S.note=e.target.value;save()};
 $('#mc').onchange=e=>{S.machine=e.target.value;resizeN(MC[S.machine]);save();fill();render()};
